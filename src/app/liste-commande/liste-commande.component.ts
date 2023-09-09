@@ -5,7 +5,6 @@ import { Commande } from '../commande';
 import jsPDF from 'jspdf'; 
 import { LigneCommande } from '../ligne-commande';
 import { Client } from '../client';
-import { json } from 'stream/consumers';
 
 @Component({
   selector: 'app-liste-commande',
@@ -48,25 +47,48 @@ export class ListeCommandeComponent {
     Cell F : code client
     Cell G : nom client
     */
+   let codeClient: ExcelJS.CellValue,nomClient: ExcelJS.CellValue,codeArticle: ExcelJS.CellValue,nomArticle: ExcelJS.CellValue,familleArticle: ExcelJS.CellValue,qte : ExcelJS.CellValue;
+
+    let firstRow = sheet.getRow(1);
+    firstRow.eachCell(cell =>{
+      switch((cell + "")){
+        case "Client": codeClient = cell.$col$row.replace(/[^A-Z]/g, '');
+          break;
+        case "Qté": qte = cell.$col$row.replace(/[^A-Z]/g, '');;
+          break;
+        case "Article" : codeArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
+          break;
+        case "Description" : nomArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
+          break;
+        case "Nom Client" : nomClient = cell.$col$row.replace(/[^A-Z]/g, '');
+          break;
+        case "Famille" : familleArticle = cell.$col$row.replace(/[^A-Z]/g, '');
+        break;
+
+        default : break;
+      }
+     
+    });
+    
     sheet.eachRow((row) => {
       let client : Client = new clientImpl();
-      client.nom = row.getCell('G').value;
+      client.nom = row.getCell(nomClient+"").value;
       if (client.nom !== "Nom Client" && client.nom !== null) {
-        let commande : Commande = new commandeImpl(); 
+        let commande : Commande = new commandeImpl();
         let ligneCommande : LigneCommande = new ligneCommandeImpl();
 
-        ligneCommande.famille = row.getCell('I').value;
-        ligneCommande.qte = row.getCell('B').value;
-        ligneCommande.nom = row.getCell('D').value;
-        client.code = row.getCell('F').value;
-        let codeArticle = row.getCell('C').value;
-        commande.article.set(codeArticle, ligneCommande);
+        ligneCommande.famille = row.getCell(familleArticle+"").value;
+        ligneCommande.qte = row.getCell(qte+"").value;
+        ligneCommande.nom = row.getCell(nomArticle+"").value;
+        client.code = row.getCell(codeClient+"").value;
+        let codeDeArticle = row.getCell(codeArticle+"").value;
+        commande.article.set(codeDeArticle, ligneCommande);
 
         if(!this.map.has(JSON.stringify(client))) //si le client n'est pas encore présent dans la map
           this.map.set(JSON.stringify(client),commande);
         else {
           let commandeClient = this.map.get(JSON.stringify(client));
-          commandeClient?.article.set(codeArticle, ligneCommande);
+          commandeClient?.article.set(codeDeArticle, ligneCommande);
         }
       }
       });
