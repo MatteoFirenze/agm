@@ -1,5 +1,5 @@
 import { Component, ElementRef, Renderer2 } from '@angular/core';
-import {CdkDragDrop, CdkDropList, CdkDrag, moveItemInArray} from '@angular/cdk/drag-drop';
+import {CdkDragDrop, CdkDropList, CdkDrag, moveItemInArray, transferArrayItem} from '@angular/cdk/drag-drop';
 import * as ExcelJS from 'exceljs' ;
 import { Commande } from '../commande';
 import jsPDF from 'jspdf'; 
@@ -14,6 +14,9 @@ import { Client } from '../client';
 export class ListeCommandeComponent {
 
   clients : any = [];
+  tournee1 : any = [];
+  tournee2 : any = [];
+  
   map : Map<string,Commande> = new Map();
   
   constructor(private renderer: Renderer2, private el: ElementRef) {}
@@ -22,9 +25,69 @@ export class ListeCommandeComponent {
     this.renderer.addClass(this.el.nativeElement, 'tab');
   }
 
-  drop(event: CdkDragDrop<string[]>) {
-    moveItemInArray(this.clients, event.previousIndex, event.currentIndex);
-  }
+  drop(event: CdkDragDrop<any[]>) {
+    //si on reste dans le même tableau pour déplacer l'obj
+    if (event.previousContainer === event.container) {
+      switch(event.container.id){
+        case "cdk-drop-list-0" : moveItemInArray(this.clients, event.previousIndex, event.currentIndex);
+        break;
+        case "cdk-drop-list-1" : moveItemInArray(this.tournee1, event.previousIndex, event.currentIndex);
+        break;
+        case "cdk-drop-list-2" : moveItemInArray(this.tournee2, event.previousIndex, event.currentIndex);
+        break;
+        default : break;
+      }
+        
+    } else {//si on change de tableau : on regarde d'où on vient et vers où on va
+      switch(event.previousContainer.id){
+        case "cdk-drop-list-0":
+          event.container.id == "cdk-drop-list-1"?
+           transferArrayItem(
+              this.clients,
+              this.tournee1,
+              event.previousIndex,
+              event.currentIndex
+            ):transferArrayItem(
+              this.clients,
+              this.tournee2,
+              event.previousIndex,
+              event.currentIndex
+            );
+          break;
+          case "cdk-drop-list-1":
+          event.container.id == "cdk-drop-list-2"?
+           transferArrayItem(
+              this.tournee1,
+              this.tournee2,
+              event.previousIndex,
+              event.currentIndex
+            ):transferArrayItem(
+              this.tournee1,
+              this.clients,
+              event.previousIndex,
+              event.currentIndex
+            );
+          break;
+          case "cdk-drop-list-2":
+          event.container.id == "cdk-drop-list-0"?
+           transferArrayItem(
+              this.tournee2,
+              this.clients,
+              event.previousIndex,
+              event.currentIndex
+            ):transferArrayItem(
+              this.tournee2,
+              this.tournee1,
+              event.previousIndex,
+              event.currentIndex
+            );
+          break;
+
+          default: break;
+      }
+        
+    }
+}
 
   async readAndSortExcel(event: any) {
   
@@ -97,6 +160,8 @@ export class ListeCommandeComponent {
         let cli = JSON.parse(client);
         this.clients.push(cli);
       }
+      this.tournee1 = [];
+      this.tournee2 = [];
     }
 
     readFile(fileRes: Blob) {
