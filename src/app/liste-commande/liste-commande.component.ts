@@ -160,8 +160,6 @@ export class ListeCommandeComponent {
         let cli = JSON.parse(client);
         this.clients.push(cli);
       }
-      this.tournee1 = [];
-      this.tournee2 = [];
     }
 
     readFile(fileRes: Blob) {
@@ -174,8 +172,8 @@ export class ListeCommandeComponent {
       });
     }
 
- async imprimer(){ 
-    this.trier();
+ async imprimer(num : any){ 
+    this.trier(num);
     this.creerTab();
     
     let table = this.el.nativeElement.querySelector('.tab') as HTMLTableElement; // Sélectionne le tableau HTML créé
@@ -193,6 +191,7 @@ export class ListeCommandeComponent {
         autoPaging: 'text',
     });
     this.renderer.addClass(table, 'hide-on-html');
+    this.softReset();
   }
   
   creerTab() {
@@ -262,8 +261,16 @@ export class ListeCommandeComponent {
   chambre4 : Set<ExcelJS.CellValue[]> = new Set(); //pâtes fraiches
   chambre5 : Set<ExcelJS.CellValue[]> = new Set(); //desserts et verdures
 
-  trier(){
-    this.clients.forEach((client: any) => {
+  trier(num : any){
+    switch(num){
+      case 1:num = this.clients;
+      break;
+      case 2:num = this.tournee1;
+      break;
+      case 3:num = this.tournee2;
+      break;
+    }
+    num.forEach((client: any) => {
       let commande = this.map.get(JSON.stringify(client));
       commande?.article.forEach(article=>{
         switch(article.famille){
@@ -304,6 +311,24 @@ export class ListeCommandeComponent {
 
   }
 
+  softReset(){
+    let table = this.el.nativeElement.querySelector('.tab') as HTMLTableElement; // Sélectionnez le tableau
+    if (table) {
+      while (table.rows.length > 0) {
+        table.deleteRow(0);
+      }
+      let parent = table.parentNode;
+      if (parent) {
+        parent.removeChild(table);
+      }
+    }
+    this.vins.clear();
+    this.chambre1.clear();
+    this.chambre2.clear();
+    this.chambre3.clear();
+    this.chambre4.clear();
+    this.chambre5.clear();
+  }
 
   reset() {
     let table = this.el.nativeElement.querySelector('.tab') as HTMLTableElement; // Sélectionnez le tableau
@@ -323,6 +348,9 @@ export class ListeCommandeComponent {
     }
   
     this.clients = [];
+    this.tournee1 = [];
+    this.tournee2 = [];
+
     this.map.clear();
     this.vins.clear();
     this.chambre1.clear();
