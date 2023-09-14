@@ -8,6 +8,24 @@
 	cursor: pointer;
 	outline: inherit;
 }
+.titre{
+  margin-top: 1rem;
+  padding-bottom: 1rem;
+  font-size: large;
+  font-weight:600;
+  border-bottom: solid 0.1rem black;
+}
+.btns{
+  border: solid black 0.1rem;
+  border-radius: 0.4rem;
+  transition-duration: 0.5s;
+}
+
+.btns:hover{
+  background-color: black;
+  color: white;
+  transform: scale(1.1);
+}
 .hide-on-html {
   display: none;
 }
@@ -60,15 +78,18 @@ svg{
 }
 
 .example-list {
+    text-align:center;
+    font-size: large;
     width: 35vh;
     height: 60vh;
     max-width: 100%;
-    border: solid 1px #ccc;
     min-height: 60px;
     display: block;
-    background: white;
-    border-radius: 4px;
+    background-color: rgb(240, 240, 240);
+    border-radius: 0.8rem;
     overflow: auto;
+    margin-left:0.4rem;
+    margin-right: 0.4rem;
   }
   
   .example-box {
@@ -81,8 +102,9 @@ svg{
     justify-content: space-between;
     box-sizing: border-box;
     cursor: move;
-    background: white;
+    background-color: rgb(240, 240, 240);
     font-size: 14px;
+    text-align: start;
   }
   
   .cdk-drag-preview {

@@ -4,28 +4,35 @@
         
         <div class="d-flex flex-row" cdkDropListGroup>
             <div cdkDropList class="example-list" (cdkDropListDropped)="drop($event)">
-                Tournée n°1
-                <button class="btn btn-dark mx-3" (click)="imprimer(1)">
-                    Imprimer
-                </button>
+                <div class="d-flex justify-content-around titre">
+                    <div>Tournée n°1</div>
+                    <button class="btns" (click)="imprimer(1)">
+                        Imprimer
+                    </button>
+                </div>
+                
                 <div class="example-box" (click)="developperFacture(client)" *ngFor="let client of clients" cdkDrag>
                     {{client.nom}}
                 </div>
             </div>
             <div cdkDropList class="example-list" (cdkDropListDropped)="drop($event)">
-                Tournée n°2
-                <button class="btn btn-dark mx-3" (click)="imprimer(2)">
-                    Imprimer
-                </button>
+                <div class="d-flex justify-content-around titre">
+                    <div>Tournée n°2</div>
+                    <button class="btns" (click)="imprimer(2)">
+                        Imprimer
+                    </button>
+                </div>
                 <div class="example-box" (click)="developperFacture(client)" *ngFor="let client of tournee1" cdkDrag>
                     {{client.nom}}
                 </div>
             </div>
             <div cdkDropList class="example-list" (cdkDropListDropped)="drop($event)">
-                Tournée n°3
-                <button class="btn btn-dark mx-3" (click)="imprimer(3)">
-                    Imprimer
-                </button>
+                <div class="d-flex justify-content-around titre">
+                    <div>Tournée n°3</div>
+                    <button class="btns" (click)="imprimer(3)">
+                        Imprimer
+                    </button>
+                </div>
                 <div class="example-box" (click)="developperFacture(client)" *ngFor="let client of tournee2" cdkDrag>
                     {{client.nom}}
                 </div>
