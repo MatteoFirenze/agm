@@ -5,6 +5,9 @@ import { Commande } from '../commande';
 import jsPDF from 'jspdf'; 
 import { LigneCommande } from '../ligne-commande';
 import { Client } from '../client';
+const pdfMake = require('pdfmake/build/pdfmake.js');
+import * as pdfFonts from 'pdfmake/build/vfs_fonts';
+pdfMake.vfs = pdfFonts.pdfMake.vfs;
 
 @Component({
   selector: 'app-liste-commande',
@@ -174,7 +177,148 @@ export class ListeCommandeComponent {
 
  async imprimer(num : any){ 
     this.trier(num);
-    this.creerTab();
+
+    const vin = Array.from(this.vins).map(item => {
+      return {
+        text: `${item[0]}\t${item[1]}`,
+        style: 'listItem'
+      };
+    });
+
+
+    const vins = [];
+    const itemsPerColumn = 22; // Change to adjust the number of items per column
+
+    for (let i = 0; i < Array.from(this.vins).length; i += itemsPerColumn) {
+      let columnContent = vin.slice(i, i + itemsPerColumn);
+      let column = {
+        stack: columnContent,
+        style: 'column'
+      };
+      vins.push(column);
+    }
+
+    const pate = Array.from(this.chambre3).map(item => {
+      return {
+        text: `${item[0]}\t${item[1]}`,
+        style: 'listItem'
+      };
+    });
+    const pates = [];
+    const anotherItemsPerColumn = 22;
+
+    for (let i = 0; i < Array.from(this.chambre3).length; i += anotherItemsPerColumn) {
+      const columnContent = pate.slice(i, i + anotherItemsPerColumn);
+      const column = {
+        stack: columnContent,
+        style: 'column'
+      };
+      pates.push(column);
+    }
+
+    const poisson = Array.from(this.chambre1).map(item => {
+      return {
+        text: `${item[0]}\t${item[1]}`,
+        style: 'listItem'
+      };
+    });
+    const poissons = [];
+    const itemPoisson = 22;
+
+    for (let i = 0; i < Array.from(this.chambre1).length; i += itemPoisson) {
+      const columnContent = poisson.slice(i, i + itemPoisson);
+      const column = {
+        stack: columnContent,
+        style: 'column'
+      };
+      poissons.push(column);
+    }
+
+    const pateFr = Array.from(this.chambre4).map(item => {
+      return {
+        text: `${item[0]}\t${item[1]}`,
+        style: 'listItem'
+      };
+    });
+    const patesFr = [];
+    const itemPatesFr = 22;
+
+    for (let i = 0; i < Array.from(this.chambre4).length; i += itemPatesFr) {
+      const columnContent = pateFr.slice(i, i + itemPatesFr);
+      const column = {
+        stack: columnContent,
+        style: 'column'
+      };
+      patesFr.push(column);
+    }
+
+    const documentDefinition = {
+      content: [
+        {
+          text: 'Vini',
+          style: 'header'
+        },
+        {
+          columns: vins,
+          columnGap: 10
+        },
+        { text: '', pageBreak: 'before' }, // Force a new page
+        {
+          columns: [
+            {
+              text: 'Pesce',
+              style: 'header'
+            },
+            {
+              text: 'Pasta Surg',
+              style: 'header'
+            },
+            {
+              text: 'Pasta Fresca',
+              style: 'header'
+            }
+          ],
+          columnGap: 10
+        },
+        {
+          columns: [
+            {
+              stack: poissons,
+              style: 'column'
+            },
+            {
+              stack: pates,
+              style: 'column'
+            },
+            {
+              stack: patesFr,
+              style: 'column'
+            }
+          ],
+          columnGap: 10
+        }
+      ],
+      styles: {
+        listItem: {
+          fontSize: 10,
+          margin: [0, 0, 0, 10] // top, right, bottom, left
+        },
+        column: {
+          width: '33.33%' // Adjust the width based on the number of columns
+        },
+        header: {
+          fontSize: 16,
+          bold: true,
+          margin: [0, 0, 0, 10] // top, right, bottom, left
+        }
+      }
+    };
+
+  
+  pdfMake.createPdf(documentDefinition).download('Liste.pdf');
+
+
+   /* this.creerTab();
     
     let table = this.el.nativeElement.querySelector('.tab') as HTMLTableElement; // Sélectionne le tableau HTML créé
     let doc = new jsPDF("p", "pt", "a4");
@@ -191,7 +335,7 @@ export class ListeCommandeComponent {
         autoPaging: 'text',
     });
     this.renderer.addClass(table, 'hide-on-html');
-    this.softReset();
+    this.softReset();*/
   }
   
   creerTab() {
