@@ -151,7 +151,18 @@ export class ListeCommandeComponent {
           this.map.set(JSON.stringify(client),commande);
         else {
           let commandeClient = this.map.get(JSON.stringify(client));
-          commandeClient?.article.set(codeDeArticle, ligneCommande);
+
+          if(commandeClient?.article.has(codeDeArticle)){ //si l'article est déjà présent
+            let ligneCommandeComputed = new ligneCommandeImpl();
+            ligneCommandeComputed.famille = ligneCommande.famille;
+            ligneCommandeComputed.nom = ligneCommande.nom;
+            //compute old qty and new one
+            ligneCommandeComputed.qte = parseInt(JSON.parse(JSON.stringify(ligneCommande!.qte)))
+             + parseInt(JSON.parse(JSON.stringify(commandeClient?.article.get(codeDeArticle)?.qte)));
+
+            commandeClient.article.set(codeDeArticle, ligneCommandeComputed);
+          }
+          else commandeClient?.article.set(codeDeArticle, ligneCommande);
         }
       }
       });
