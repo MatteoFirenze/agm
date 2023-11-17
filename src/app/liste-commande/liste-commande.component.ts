@@ -153,14 +153,14 @@ export class ListeCommandeComponent {
           let commandeClient = this.map.get(JSON.stringify(client));
 
           if(commandeClient?.article.has(codeDeArticle)){ //si l'article est déjà présent
-            let ligneCommandeComputed = new ligneCommandeImpl();
+            /*let ligneCommandeComputed = new ligneCommandeImpl();
             ligneCommandeComputed.famille = ligneCommande.famille;
             ligneCommandeComputed.nom = ligneCommande.nom;
             //compute old qty and new one
             ligneCommandeComputed.qte = parseInt(JSON.parse(JSON.stringify(ligneCommande!.qte)))
-             + parseInt(JSON.parse(JSON.stringify(commandeClient?.article.get(codeDeArticle)?.qte)));
+             + parseInt(JSON.parse(JSON.stringify(commandeClient?.article.get(codeDeArticle)?.qte)));*/
 
-            commandeClient.article.set(codeDeArticle, ligneCommandeComputed);
+            commandeClient.article.set(codeDeArticle + "1", ligneCommande);//à changer si tu uncomment le code au dessus (ligneCommande -> ligneCommandeComputed)
           }
           else commandeClient?.article.set(codeDeArticle, ligneCommande);
         }
