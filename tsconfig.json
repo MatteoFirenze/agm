@@ -22,7 +22,8 @@
     "lib": [
       "ESNext",
       "dom"
-    ]
+    ],
+    "types": ["pdfmake"]
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
@@ -31,4 +32,5 @@
     "strictTemplates": true,
     "types": ["node"],
   },
+  
 }
