@@ -7,6 +7,7 @@ import { LigneCommande } from '../ligne-commande';
 import { Client } from '../client';
 const pdfMake = require('pdfmake/build/pdfmake.js');
 import * as pdfFonts from 'pdfmake/build/vfs_fonts';
+import { Column } from 'jspdf-autotable';
 pdfMake.vfs = pdfFonts.pdfMake.vfs;
 
 @Component({
@@ -174,83 +175,37 @@ export class ListeCommandeComponent {
         }
       });
     }
-
+    //function used by imprimer to process the data to put in the pdf
+    processDataForColumns(data: any[], itemsPerColumn: number) {
+      const columns = [];
+    
+      for (let i = 0; i < data.length; i += itemsPerColumn) {
+        const columnContent = data.slice(i, i + itemsPerColumn).map((item: any[]) => {
+          return {
+            text: `${item[0]}\t${item[1]}`,
+            style: 'listItem'
+          };
+        });
+    
+        const column = {
+          stack: columnContent,
+          style: 'column'
+        };
+    
+        columns.push(column);
+      }
+    
+      return columns;
+    }
  async imprimer(num : any){ 
     this.trier(num);
 
-    const vin = Array.from(this.vins).map(item => {
-      return {
-        text: `${item[0]}\t${item[1]}`,
-        style: 'listItem'
-      };
-    });
-
-
-    const vins = [];
-    const itemsPerColumn = 22; // Change to adjust the number of items per column
-
-    for (let i = 0; i < Array.from(this.vins).length; i += itemsPerColumn) {
-      let columnContent = vin.slice(i, i + itemsPerColumn);
-      let column = {
-        stack: columnContent,
-        style: 'column'
-      };
-      vins.push(column);
-    }
-
-    const pate = Array.from(this.chambre3).map(item => {
-      return {
-        text: `${item[0]}\t${item[1]}`,
-        style: 'listItem'
-      };
-    });
-    const pates = [];
-    const anotherItemsPerColumn = 22;
-
-    for (let i = 0; i < Array.from(this.chambre3).length; i += anotherItemsPerColumn) {
-      const columnContent = pate.slice(i, i + anotherItemsPerColumn);
-      const column = {
-        stack: columnContent,
-        style: 'column'
-      };
-      pates.push(column);
-    }
-
-    const poisson = Array.from(this.chambre1).map(item => {
-      return {
-        text: `${item[0]}\t${item[1]}`,
-        style: 'listItem'
-      };
-    });
-    const poissons = [];
-    const itemPoisson = 22;
-
-    for (let i = 0; i < Array.from(this.chambre1).length; i += itemPoisson) {
-      const columnContent = poisson.slice(i, i + itemPoisson);
-      const column = {
-        stack: columnContent,
-        style: 'column'
-      };
-      poissons.push(column);
-    }
-
-    const pateFr = Array.from(this.chambre4).map(item => {
-      return {
-        text: `${item[0]}\t${item[1]}`,
-        style: 'listItem'
-      };
-    });
-    const patesFr = [];
-    const itemPatesFr = 22;
-
-    for (let i = 0; i < Array.from(this.chambre4).length; i += itemPatesFr) {
-      const columnContent = pateFr.slice(i, i + itemPatesFr);
-      const column = {
-        stack: columnContent,
-        style: 'column'
-      };
-      patesFr.push(column);
-    }
+    const vins = this.processDataForColumns(Array.from(this.vins), 22);
+    const poissons = this.processDataForColumns(Array.from(this.chambre1), 22);
+    const glaceChampi = this.processDataForColumns(Array.from(this.chambre2),22);
+    const pates = this.processDataForColumns(Array.from(this.chambre3), 22);
+    const patesFr = this.processDataForColumns(Array.from(this.chambre4), 22);
+    const dessertVerd = this.processDataForColumns(Array.from(this.chambre5),22);
 
     const documentDefinition = {
       content: [
@@ -276,6 +231,14 @@ export class ListeCommandeComponent {
             {
               text: 'Pasta Fresca',
               style: 'header'
+            },
+            {
+              text: 'Gelati/Fungi',
+              style: 'header'
+            },
+            {
+              text: 'Dessert/Verdura',
+              style: 'header'
             }
           ],
           columnGap: 10
@@ -292,6 +255,14 @@ export class ListeCommandeComponent {
             },
             {
               stack: patesFr,
+              style: 'column'
+            },
+            {
+              stack: glaceChampi,
+              style: 'column'
+            },
+            {
+              stack: dessertVerd,
               style: 'column'
             }
           ],
@@ -315,87 +286,7 @@ export class ListeCommandeComponent {
     };
 
   
-  pdfMake.createPdf(documentDefinition).download('Liste.pdf');
-
-
-   /* this.creerTab();
-    
-    let table = this.el.nativeElement.querySelector('.tab') as HTMLTableElement; // Sélectionne le tableau HTML créé
-    let doc = new jsPDF("p", "pt", "a4");
-    
-    // Utilise la méthode .html() de jsPDF pour insérer le contenu HTML (le tableau) dans le PDF
-    await doc.html(table, {
-        callback: function(doc) {
-            doc.save("newpdf.pdf");
-        },
-        width: 590,
-        windowWidth: 1000,
-        x:5,
-        y:0,
-        autoPaging: 'text',
-    });
-    this.renderer.addClass(table, 'hide-on-html');
-    this.softReset();*/
-  }
-  
-  creerTab() {
-    let maxSize = Math.max(
-      this.chambre1.size,
-      this.chambre2.size,
-      this.chambre3.size,
-      this.chambre4.size,
-      this.chambre5.size,
-      this.vins.size
-    );
-  
-    let ensembles = [
-      Array.from(this.vins),
-      Array.from(this.chambre1),
-      Array.from(this.chambre2),
-      Array.from(this.chambre3),
-      Array.from(this.chambre4),
-      Array.from(this.chambre5),
-    ];
-  
-    let table = this.renderer.createElement('table');
-    this.renderer.appendChild(this.el.nativeElement, table);
-    this.renderer.addClass(table, 'tab');
-   
-
-    for (let i = 0; i < maxSize; i++) {
-      let row = this.renderer.createElement('tr');
-      this.renderer.appendChild(table, row);
-  
-      for (let j = 0; j < ensembles.length; j++) {
-        let cell = this.renderer.createElement('td');
-        let cellValue = ensembles[j][i]; // Récupérez la valeur de la cellule
-        if (cellValue !== undefined) {
-          // Créez un conteneur div
-          let container = this.renderer.createElement('div');
-          
-          // Créez le premier élément <p>
-          let labelLeft = this.renderer.createElement('p');
-          let textLeft = this.renderer.createText(cellValue[0] + "");
-          this.renderer.addClass(labelLeft, 'goLeft');
-          this.renderer.appendChild(labelLeft, textLeft);
-      
-          // Créez le deuxième élément <p>
-          let labelRight = this.renderer.createElement('p');
-          let textRight = this.renderer.createText(cellValue[1] + "");
-          this.renderer.addClass(labelRight, 'goRight');
-          this.renderer.appendChild(labelRight, textRight);
-      
-          // Ajoutez les deux éléments <p> au conteneur div
-          this.renderer.appendChild(container, labelLeft);
-          this.renderer.appendChild(container, labelRight);
-          this.renderer.addClass(container,'spacer')
-          
-          // Ajoutez le conteneur div à la cellule
-          this.renderer.appendChild(cell, container);
-        }
-        this.renderer.appendChild(row, cell);
-      }
-    }
+   pdfMake.createPdf(documentDefinition).download('Liste.pdf');
   }
 
   vins : Set<ExcelJS.CellValue[]> = new Set(); //chambre en partant du vollet
