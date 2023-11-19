@@ -8,7 +8,9 @@ import { FooterComponent } from './footer/footer.component';
 import { ListeCommandeComponent } from './liste-commande/liste-commande.component';
 import { Routes, RouterModule } from '@angular/router';
 import { DragDropModule } from '@angular/cdk/drag-drop';
-
+import { MessagesModule } from 'primeng/messages';
+import { MessageService } from 'primeng/api';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 const appRoutes: Routes = [
   {path :'', component : ListeCommandeComponent}
 ];
@@ -26,8 +28,10 @@ const appRoutes: Routes = [
     AppRoutingModule,
     RouterModule.forRoot(appRoutes),
     DragDropModule,
+    MessagesModule,
+    BrowserAnimationsModule
   ],
-  providers: [],
+  providers: [MessageService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

@@ -2,14 +2,12 @@ import { Component, ElementRef, Renderer2 } from '@angular/core';
 import {CdkDragDrop, CdkDropList, CdkDrag, moveItemInArray, transferArrayItem} from '@angular/cdk/drag-drop';
 import * as ExcelJS from 'exceljs' ;
 import { Commande } from '../commande';
-import jsPDF from 'jspdf'; 
 import { LigneCommande } from '../ligne-commande';
 import { Client } from '../client';
 const pdfMake = require('pdfmake/build/pdfmake.js');
 import * as pdfFonts from 'pdfmake/build/vfs_fonts';
-import { Column } from 'jspdf-autotable';
 pdfMake.vfs = pdfFonts.pdfMake.vfs;
-
+import { MessageService } from 'primeng/api';
 @Component({
   selector: 'app-liste-commande',
   templateUrl: './liste-commande.component.html',
@@ -20,14 +18,9 @@ export class ListeCommandeComponent {
   clients : any = [];
   tournee1 : any = [];
   tournee2 : any = [];
-  
   map : Map<string,Commande> = new Map();
   
-  constructor(private renderer: Renderer2, private el: ElementRef) {}
-
-  ngOnInit() {
-    this.renderer.addClass(this.el.nativeElement, 'tab');
-  }
+  constructor(private renderer: Renderer2, private el: ElementRef, private message: MessageService) {}
 
   drop(event: CdkDragDrop<any[]>) {
     //si on reste dans le même tableau pour déplacer l'obj
@@ -136,8 +129,14 @@ export class ListeCommandeComponent {
       }
      
     });
-    
+    if(codeClient==null||qte==null||codeArticle==null||nomArticle==null||nomClient==null||familleArticle==null){
+      this.message.add({ severity: 'error', summary: 'Erreur', detail: 'Un des champs est manquant dans le fichier!' });
+      this.reset();
+      return;
+    }
+    let compteur = 0; //va servir à différencier 2x le mm article ex 1x article à retirer et une fois à ajouter
     sheet.eachRow((row) => {
+      compteur++;
       let client : Client = new clientImpl();
       client.nom = row.getCell(nomClient+"").value;
       if (client.nom !== "Nom Client" && client.nom !== null) {
@@ -164,7 +163,7 @@ export class ListeCommandeComponent {
             ligneCommandeComputed.qte = parseInt(JSON.parse(JSON.stringify(ligneCommande!.qte)))
              + parseInt(JSON.parse(JSON.stringify(commandeClient?.article.get(codeDeArticle)?.qte)));*/
 
-            commandeClient.article.set(codeDeArticle + "1", ligneCommande);//à changer si tu uncomment le code au dessus (ligneCommande -> ligneCommandeComputed)
+            commandeClient.article.set(codeDeArticle + (compteur+""), ligneCommande);//à changer si tu uncomment le code au dessus (ligneCommande -> ligneCommandeComputed)
           }
           else commandeClient?.article.set(codeDeArticle, ligneCommande);
         }
@@ -211,7 +210,7 @@ export class ListeCommandeComponent {
  async imprimer(num : any){ 
     this.trier(num);
 
-    const vins = this.processDataForColumns(Array.from(this.vins), 22);
+    const vins = this.processDataForColumns(Array.from(this.vins), 20);
     const poissons = this.processDataForColumns(Array.from(this.chambre1), 22);
     const glaceChampi = this.processDataForColumns(Array.from(this.chambre2),22);
     const pates = this.processDataForColumns(Array.from(this.chambre3), 22);
@@ -282,7 +281,7 @@ export class ListeCommandeComponent {
       ],
       styles: {
         listItem: {
-          fontSize: 10,
+          fontSize: 9.25,
           margin: [0, 0, 0, 10] // top, right, bottom, left
         },
         column: {
