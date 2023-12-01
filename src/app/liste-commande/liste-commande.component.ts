@@ -20,7 +20,7 @@ export class ListeCommandeComponent {
   tournee2 : any = [];
   map : Map<string,Commande> = new Map();
   
-  constructor(private renderer: Renderer2, private el: ElementRef, private message: MessageService) {}
+  constructor(private el: ElementRef, private message: MessageService) {}
 
   drop(event: CdkDragDrop<any[]>) {
     //si on reste dans le même tableau pour déplacer l'obj
@@ -297,6 +297,7 @@ export class ListeCommandeComponent {
 
   
    pdfMake.createPdf(documentDefinition).download('Liste.pdf');
+   this.softReset()
   }
 
   vins : Set<ExcelJS.CellValue[]> = new Set(); //chambre en partant du vollet
@@ -305,17 +306,19 @@ export class ListeCommandeComponent {
   chambre3 : Set<ExcelJS.CellValue[]> = new Set(); //pâtes cong
   chambre4 : Set<ExcelJS.CellValue[]> = new Set(); //pâtes fraiches
   chambre5 : Set<ExcelJS.CellValue[]> = new Set(); //desserts et verdures
-
+  numero : any;
   trier(num : any){
     switch(num){
-      case 1:num = this.clients;
+      case 1:this.numero = this.clients;
       break;
-      case 2:num = this.tournee1;
+      case 2:this.numero = this.tournee1;
       break;
-      case 3:num = this.tournee2;
+      case 3:this.numero = this.tournee2;
       break;
+      default:
+        break;
     }
-    num.forEach((client: any) => {
+    this.numero.forEach((client: any) => {
       let commande = this.map.get(JSON.stringify(client));
       commande?.article.forEach(article=>{
         switch(article.famille){
@@ -357,16 +360,6 @@ export class ListeCommandeComponent {
   }
 
   softReset(){
-    let table = this.el.nativeElement.querySelector('.tab') as HTMLTableElement; // Sélectionnez le tableau
-    if (table) {
-      while (table.rows.length > 0) {
-        table.deleteRow(0);
-      }
-      let parent = table.parentNode;
-      if (parent) {
-        parent.removeChild(table);
-      }
-    }
     this.vins.clear();
     this.chambre1.clear();
     this.chambre2.clear();
@@ -375,18 +368,7 @@ export class ListeCommandeComponent {
     this.chambre5.clear();
   }
 
-  reset() {
-    let table = this.el.nativeElement.querySelector('.tab') as HTMLTableElement; // Sélectionnez le tableau
-    if (table) {
-      while (table.rows.length > 0) {
-        table.deleteRow(0);
-      }
-      let parent = table.parentNode;
-      if (parent) {
-        parent.removeChild(table);
-      }
-    }
-  
+  reset() {  
     let fileInput = document.querySelector('.import') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = ''; // Efface la sélection du fichier
