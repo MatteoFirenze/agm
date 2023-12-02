@@ -11,6 +11,7 @@ import { DragDropModule } from '@angular/cdk/drag-drop';
 import { MessagesModule } from 'primeng/messages';
 import { MessageService } from 'primeng/api';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { DialogModule } from 'primeng/dialog';
 const appRoutes: Routes = [
   {path :'', component : ListeCommandeComponent}
 ];
@@ -29,7 +30,8 @@ const appRoutes: Routes = [
     RouterModule.forRoot(appRoutes),
     DragDropModule,
     MessagesModule,
-    BrowserAnimationsModule
+    BrowserAnimationsModule,
+    DialogModule
   ],
   providers: [MessageService],
   bootstrap: [AppComponent]

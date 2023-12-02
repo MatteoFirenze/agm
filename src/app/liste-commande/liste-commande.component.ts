@@ -8,6 +8,7 @@ const pdfMake = require('pdfmake/build/pdfmake.js');
 import * as pdfFonts from 'pdfmake/build/vfs_fonts';
 pdfMake.vfs = pdfFonts.pdfMake.vfs;
 import { MessageService } from 'primeng/api';
+import { DialogModule } from 'primeng/dialog';
 @Component({
   selector: 'app-liste-commande',
   templateUrl: './liste-commande.component.html',
@@ -107,7 +108,7 @@ export class ListeCommandeComponent {
     Cell F : code client
     Cell G : nom client
     */
-   let codeClient: ExcelJS.CellValue,nomClient: ExcelJS.CellValue,codeArticle: ExcelJS.CellValue,nomArticle: ExcelJS.CellValue,familleArticle: ExcelJS.CellValue,qte : ExcelJS.CellValue;
+   let codeClient: ExcelJS.CellValue,facture: ExcelJS.CellValue,nomClient: ExcelJS.CellValue,codeArticle: ExcelJS.CellValue,nomArticle: ExcelJS.CellValue,familleArticle: ExcelJS.CellValue,qte : ExcelJS.CellValue;
 
     let firstRow = sheet.getRow(1);
     firstRow.eachCell(cell =>{
@@ -124,13 +125,14 @@ export class ListeCommandeComponent {
           break;
         case "Famille" : familleArticle = cell.$col$row.replace(/[^A-Z]/g, '');
         break;
-
+        case "N° pièce" : facture = cell.$col$row.replace(/[^A-Z]/g, '');
+        break;
         default : break;
       }
      
     });
-    if(codeClient==null||qte==null||codeArticle==null||nomArticle==null||nomClient==null||familleArticle==null){
-      this.message.add({ severity: 'error', summary: 'Erreur', detail: 'Un des champs est manquant dans le fichier!' });
+    if(codeClient==null||qte==null||codeArticle==null||nomArticle==null||nomClient==null||familleArticle==null || facture == null){
+      this.message.add({ severity: 'error', summary: 'Erreur', detail: 'Un des champs est manquant dans le fichier!\nChamps requis : code client, nom client, code article, quantité article, nom article, famille article, numero de facture/pièce' });
       this.reset();
       return;
     }
@@ -139,7 +141,8 @@ export class ListeCommandeComponent {
       compteur++;
       let client : Client = new clientImpl();
       client.nom = row.getCell(nomClient+"").value;
-      if (client.nom !== "Nom Client" && client.nom !== null) {
+      client.facture = row.getCell(facture+"").value;
+      if (client.facture !== "N° pièce" && client.facture !== null) {
         let commande : Commande = new commandeImpl();
         let ligneCommande : LigneCommande = new ligneCommandeImpl();
 
@@ -156,14 +159,7 @@ export class ListeCommandeComponent {
           let commandeClient = this.map.get(JSON.stringify(client));
 
           if(commandeClient?.article.has(codeDeArticle)){ //si l'article est déjà présent
-            /*let ligneCommandeComputed = new ligneCommandeImpl();
-            ligneCommandeComputed.famille = ligneCommande.famille;
-            ligneCommandeComputed.nom = ligneCommande.nom;
-            //compute old qty and new one
-            ligneCommandeComputed.qte = parseInt(JSON.parse(JSON.stringify(ligneCommande!.qte)))
-             + parseInt(JSON.parse(JSON.stringify(commandeClient?.article.get(codeDeArticle)?.qte)));*/
-
-            commandeClient.article.set(codeDeArticle + (compteur+""), ligneCommande);//à changer si tu uncomment le code au dessus (ligneCommande -> ligneCommandeComputed)
+            commandeClient.article.set(codeDeArticle + (compteur+""), ligneCommande);
           }
           else commandeClient?.article.set(codeDeArticle, ligneCommande);
         }
@@ -353,11 +349,23 @@ export class ListeCommandeComponent {
   }
 
   showCommande :  any = [];
-
-  //to do later
+  stringAffichage : string = "";
   developperFacture(client :ExcelJS.CellValue){
-
+    this.stringAffichage = "";
+    let commandeClient = this.map.get(JSON.stringify(client));
+    commandeClient?.article.forEach((ligne)=>{
+      this.stringAffichage += (ligne.qte +" "+ligne.nom+"<br>");
+    });
+    this.display();
   }
+
+
+  visible: boolean = false;
+
+  display(){
+    this.visible = true;
+  }
+
 
   softReset(){
     this.vins.clear();
@@ -406,6 +414,7 @@ class ligneCommandeImpl implements LigneCommande{
 class clientImpl implements Client{
   nom: ExcelJS.CellValue;
   code : ExcelJS.CellValue;
+  facture: ExcelJS.CellValue;
   constructor(){
   }
 }
