@@ -113,19 +113,19 @@ export class ListeCommandeComponent {
     let firstRow = sheet.getRow(1);
     firstRow.eachCell(cell =>{
       switch((cell + "")){
-        case "Client": codeClient = cell.$col$row.replace(/[^A-Z]/g, '');
+        case "code_de_la_société": codeClient = cell.$col$row.replace(/[^A-Z]/g, '');
           break;
-        case "Qté": qte = cell.$col$row.replace(/[^A-Z]/g, '');;
+        case "quantité_totale": qte = cell.$col$row.replace(/[^A-Z]/g, '');;
           break;
-        case "Article" : codeArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
+        case "référence_article" : codeArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
           break;
-        case "Description" : nomArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
+        case "nom_article" : nomArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
           break;
-        case "Nom Client" : nomClient = cell.$col$row.replace(/[^A-Z]/g, '');
+        case "nom_de_la_société" : nomClient = cell.$col$row.replace(/[^A-Z]/g, '');
           break;
-        case "Famille" : familleArticle = cell.$col$row.replace(/[^A-Z]/g, '');
+        case "famille" : familleArticle = cell.$col$row.replace(/[^A-Z]/g, '');
         break;
-        case "N° pièce" : facture = cell.$col$row.replace(/[^A-Z]/g, '');
+        case "numéro_de_document" : facture = cell.$col$row.replace(/[^A-Z]/g, '');
         break;
         default : break;
       }
@@ -142,7 +142,7 @@ export class ListeCommandeComponent {
       let client : Client = new clientImpl();
       client.nom = row.getCell(nomClient+"").value;
       client.facture = row.getCell(facture+"").value;
-      if (client.facture !== "N° pièce" && client.facture !== null) {
+      if (client.facture !== "numéro_de_document" && client.facture !== null) {
         let commande : Commande = new commandeImpl();
         let ligneCommande : LigneCommande = new ligneCommandeImpl();
 
