@@ -6,6 +6,9 @@
             <div cdkDropList class="example-list" (cdkDropListDropped)="drop($event)">
                 <div class="d-flex justify-content-around titre">
                     <div>Tournée n°1</div>
+                    <button class="btns" (click)="calculateTotalItems(1)">
+                        Total produits
+                    </button>
                     <button class="btns" (click)="imprimer(1)">
                         Imprimer
                     </button>
@@ -21,6 +24,9 @@
             <div cdkDropList class="example-list" (cdkDropListDropped)="drop($event)">
                 <div class="d-flex justify-content-around titre">
                     <div>Tournée n°2</div>
+                    <button class="btns" (click)="calculateTotalItems(2)">
+                        Total produits
+                    </button>
                     <button class="btns" (click)="imprimer(2)">
                         Imprimer
                     </button>
@@ -35,6 +41,9 @@
             <div cdkDropList class="example-list" (cdkDropListDropped)="drop($event)">
                 <div class="d-flex justify-content-around titre">
                     <div>Tournée n°3</div>
+                    <button class="btns" (click)="calculateTotalItems(3)">
+                        Total produits
+                    </button>
                     <button class="btns" (click)="imprimer(3)">
                         Imprimer
                     </button>
