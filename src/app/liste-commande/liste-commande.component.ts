@@ -20,7 +20,7 @@ export class ListeCommandeComponent {
   tournee1 : any = [];
   tournee2 : any = [];
   map : Map<string,Commande> = new Map();
-  
+  sheet!: ExcelJS.Worksheet;
   constructor(
     private readExcel : ReadExcelService,
     private message: MessageService,
@@ -107,9 +107,9 @@ export class ListeCommandeComponent {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as Buffer);
 
-    const sheet =  workbook.getWorksheet(1);
-
-    this.sortExcel.sortExcel(sheet,this.map,this.message);
+     this.sheet =  workbook.getWorksheet(1);
+    this.enableButton();
+    this.sortExcel.sortExcel(this.sheet,this.map,this.message,true);
     
       for(let client of this.map.keys()){
         let cli = JSON.parse(client);
@@ -191,9 +191,10 @@ export class ListeCommandeComponent {
     this.visible = true;
   }
 
-  calculateTotalItems(nbr :Number){
-
+  computeTotalItems(){
+    this.sortExcel.sortExcel(this.sheet,this.map,this.message,false);
   }
+
   softReset(){
     this.vins.clear();
     this.chambre1.clear();
@@ -204,7 +205,6 @@ export class ListeCommandeComponent {
   }
 
   reset() {  
-    console.log("Called from the service");
     let fileInput = document.querySelector('.import') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = ''; // Efface la sélection du fichier
@@ -221,5 +221,19 @@ export class ListeCommandeComponent {
     this.chambre3.clear();
     this.chambre4.clear();
     this.chambre5.clear();
+
+    this.disableButton();
+  }
+
+  isButtonDisabled: boolean = true;
+
+  // Function to disable the button
+  disableButton() {
+    this.isButtonDisabled = true;
+  }
+
+  // Function to enable the button
+  enableButton() {
+    this.isButtonDisabled = false;
   }
 }
