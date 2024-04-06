@@ -102,8 +102,8 @@ export class SortExcelService {
           let codeDeArticle = row.getCell(codeArticle+"").value;
 
           if(commande.article.has(codeDeArticle)){
-            ligneCommande.qte = parseInt(JSON.parse(JSON.stringify(ligneCommande.qte)))
-            + parseInt(JSON.parse(JSON.stringify(commande.article.get(codeDeArticle)?.qte)));
+            ligneCommande.qte = parseFloat(JSON.parse(JSON.stringify(ligneCommande.qte)))
+            + parseFloat(JSON.parse(JSON.stringify(commande.article.get(codeDeArticle)?.qte)));
             commande.article.set(codeDeArticle,ligneCommande);
           } else commande.article.set(codeDeArticle, ligneCommande);
 
