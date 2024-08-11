@@ -11,7 +11,6 @@ export class SortExcelService {
   message: any;
   map: any;
 
-  constructor(private generatePdfService : GeneratePdfService) { }
   // Declare the callback function
   private resetCallback!: () => void;
 
@@ -109,60 +108,9 @@ export class SortExcelService {
 
         }
       });
-      this.trier(commande);
-      this.generatePdfService.generatePdf(this.vins,this.chambre1,this.chambre2,this.chambre3,this.chambre4,this.chambre5);
-      this.softReset();
     }
   
   }
-
-  vins : Set<ExcelJS.CellValue[]> = new Set(); //chambre en partant du vollet
-  chambre1 : Set<ExcelJS.CellValue[]> = new Set(); //poissons
-  chambre2 : Set<ExcelJS.CellValue[]> = new Set(); //glaces et champis
-  chambre3 : Set<ExcelJS.CellValue[]> = new Set(); //pâtes cong
-  chambre4 : Set<ExcelJS.CellValue[]> = new Set(); //pâtes fraiches
-  chambre5 : Set<ExcelJS.CellValue[]> = new Set(); //desserts et verdures
- private trier(commande:any){
-  
-  commande?.article.forEach((article: { famille: any; qte: any; nom: any; })=>{
-    switch(article.famille){
-
-      case 'FA0001':
-      case 'FA0004': this.vins.add([article.qte,article.nom]);
-      break;
-
-      case 'FA0002': this.chambre3.add([article.qte,article.nom]);
-      break;
-
-      case 'FA0003': this.chambre1.add([article.qte,article.nom]);
-      break;
-
-      case 'FA0006':
-      case 'FA0007': this.chambre5.add([article.qte,article.nom]);
-      break;
-
-      case 'FA0009' : this.chambre4.add([article.qte,article.nom]);
-      break;
-
-      case 'FA0008' :
-      case 'FA0010' :
-      case 'FA0011' : this.chambre2.add([article.qte,article.nom]);
-      break;
-
-      default:
-      break;
-    }
-  });
- }
-
- softReset(){
-  this.vins.clear();
-  this.chambre1.clear();
-  this.chambre2.clear();
-  this.chambre3.clear();
-  this.chambre4.clear();
-  this.chambre5.clear();
-}
 } 
 
 

@@ -9,7 +9,12 @@ import { MessageService } from 'primeng/api';
 import { ReadExcelService } from '../read-excel.service';
 import { GeneratePdfService } from '../generate-pdf.service';
 import { SortExcelService } from '../sort-excel.service';
+import { ConfirmationService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog'; 
+    
+  
 @Component({
+  providers: [ConfirmationService],
   selector: 'app-liste-commande',
   templateUrl: './liste-commande.component.html',
   styleUrls: ['./liste-commande.component.css'],
@@ -26,6 +31,7 @@ export class ListeCommandeComponent {
     private message: MessageService,
     private generatePdf : GeneratePdfService,
     private sortExcel : SortExcelService,
+    private confirmation: ConfirmationService,
     ) {}
 
     ngOnInit(): void {
@@ -191,10 +197,41 @@ export class ListeCommandeComponent {
     this.visible = true;
   }
 
-  computeTotalItems(){
-    this.sortExcel.sortExcel(this.sheet,this.map,this.message,false);
+  deleteClient(client :ExcelJS.CellValue){
+    this.confirmation.confirm({
+      message: 'Etes-vous certain de vouloir supprimer cette commande?',
+      header: 'Confirmation',
+      acceptLabel: 'Supprimer',
+      rejectLabel: 'Annuler',
+      acceptButtonStyleClass: 'custom-accept-button',
+      rejectButtonStyleClass: 'custom-reject-button',
+      accept:()=>{
+        this.map.delete(JSON.stringify(client));
+        this.removeClientFromList(this.clients, client);
+        this.removeClientFromList(this.tournee1, client);
+        this.removeClientFromList(this.tournee2, client);
+      },
+      reject:()=>{}
+  });
+   
   }
 
+// Helper method to remove a client from a specific array
+  removeClientFromList(list: any[], client: ExcelJS.CellValue) {
+    const index = list.findIndex(item => JSON.stringify(item) === JSON.stringify(client));
+    if (index > -1) {
+      list.splice(index, 1); // Remove the client from the array
+    }
+  }
+
+  computeTotalItems(){
+    this.trier(1);
+    this.trier(2);
+    this.trier(3);
+    this.generatePdf.generatePdf(this.vins,this.chambre1,this.chambre2,this.chambre3,this.chambre4,this.chambre5);
+    this.softReset()
+  }
+ 
   softReset(){
     this.vins.clear();
     this.chambre1.clear();

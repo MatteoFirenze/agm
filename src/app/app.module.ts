@@ -9,9 +9,10 @@ import { ListeCommandeComponent } from './liste-commande/liste-commande.componen
 import { Routes, RouterModule } from '@angular/router';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import { MessagesModule } from 'primeng/messages';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { DialogModule } from 'primeng/dialog';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 const appRoutes: Routes = [
   {path :'', component : ListeCommandeComponent}
 ];
@@ -31,9 +32,10 @@ const appRoutes: Routes = [
     DragDropModule,
     MessagesModule,
     BrowserAnimationsModule,
-    DialogModule
+    DialogModule,
+    ConfirmDialogModule,
   ],
-  providers: [MessageService],
+  providers: [[MessageService],[ConfirmationService]],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

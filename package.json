@@ -27,7 +27,7 @@
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.6.0",
     "pdfmake": "^0.2.8",
-    "primeng": "^16.4.2",
+    "primeng": "^16.9.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.13.0"
