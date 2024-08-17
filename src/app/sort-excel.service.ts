@@ -18,7 +18,7 @@ export class SortExcelService {
    setResetCallback(callback: () => void) {
     this.resetCallback = callback;
   }  
-  sortExcel(sheet : ExcelJS.Worksheet,map : any,message:any,makeCommand : Boolean){
+  sortExcel(sheet : ExcelJS.Worksheet,map : any,message:any){
     /*Pour chaque ligne on crée un obj commande qui contient une map(article,qte) et on l'ajoute
     dans une autre map(client,première map)
     Cell D : nom de l'article
@@ -56,7 +56,6 @@ export class SortExcelService {
      this.resetCallback();
      return;
    }
-   if(makeCommand){
     let compteur = 0; //va servir à différencier 2x le mm article ex 1x article à retirer et une fois à ajouter
     sheet.eachRow((row) => {
       compteur++;
@@ -86,30 +85,6 @@ export class SortExcelService {
         }
       }
       }); 
-   } else {
-    let client : Client = new clientImpl();
-    let commande : Commande = new commandeImpl();
-      sheet.eachRow(row=>{
-        client.nom = row.getCell(nomClient+"").value;
-        client.facture = row.getCell(facture+"").value;
-        if (client.facture !== "numéro_de_document" && client.facture !== null) {
-          let ligneCommande : LigneCommande = new ligneCommandeImpl();
- 
-          ligneCommande.famille = row.getCell(familleArticle+"").value;
-          ligneCommande.qte = row.getCell(qte+"").value;
-          ligneCommande.nom = row.getCell(nomArticle+"").value;
-          let codeDeArticle = row.getCell(codeArticle+"").value;
-
-          if(commande.article.has(codeDeArticle)){
-            ligneCommande.qte = parseFloat(JSON.parse(JSON.stringify(ligneCommande.qte)))
-            + parseFloat(JSON.parse(JSON.stringify(commande.article.get(codeDeArticle)?.qte)));
-            commande.article.set(codeDeArticle,ligneCommande);
-          } else commande.article.set(codeDeArticle, ligneCommande);
-
-        }
-      });
-    }
-  
   }
 } 
 

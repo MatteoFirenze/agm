@@ -10,8 +10,6 @@ import { ReadExcelService } from '../read-excel.service';
 import { GeneratePdfService } from '../generate-pdf.service';
 import { SortExcelService } from '../sort-excel.service';
 import { ConfirmationService } from 'primeng/api';
-import { ConfirmDialogModule } from 'primeng/confirmdialog'; 
-    
   
 @Component({
   providers: [ConfirmationService],
@@ -115,7 +113,7 @@ export class ListeCommandeComponent {
 
      this.sheet =  workbook.getWorksheet(1);
     this.enableButton();
-    this.sortExcel.sortExcel(this.sheet,this.map,this.message,true);
+    this.sortExcel.sortExcel(this.sheet,this.map,this.message);
     
       for(let client of this.map.keys()){
         let cli = JSON.parse(client);
@@ -180,6 +178,78 @@ export class ListeCommandeComponent {
       })
     });
   }
+  trierAndCompute(num : any){
+    switch(num){
+      case 1:this.numero = this.clients;
+      break;
+      case 2:this.numero = this.tournee1;
+      break;
+      case 3:this.numero = this.tournee2;
+      break;
+      default:
+        break;
+    }
+    this.numero.forEach((client: any) => {
+      let commande = this.map.get(JSON.stringify(client));
+      commande?.article.forEach(article=>{
+        switch(article.famille){
+
+          case 'FA0001':
+          case 'FA0004': 
+            if(!this.containsNomAndUpdateQte(this.vins,article.nom!.toString(),parseInt(article.qte!.toString())))
+              this.vins.add([article.qte,article.nom]);
+          break;
+
+          case 'FA0002':  
+            if(!this.containsNomAndUpdateQte(this.chambre3,article.nom!.toString(),parseFloat(article.qte!.toString())))
+              this.chambre3.add([article.qte,article.nom]);
+          break;
+
+          case 'FA0003':
+            if(!this.containsNomAndUpdateQte(this.chambre1,article.nom!.toString(),parseFloat(article.qte!.toString())))
+              this.chambre1.add([article.qte,article.nom]);
+          break;
+
+          case 'FA0006':
+          case 'FA0007':
+            if(!this.containsNomAndUpdateQte(this.chambre5,article.nom!.toString(),parseFloat(article.qte!.toString())))
+              this.chambre5.add([article.qte,article.nom]);
+          break;
+
+          case 'FA0009' : 
+            if(!this.containsNomAndUpdateQte(this.chambre4,article.nom!.toString(),parseFloat(article.qte!.toString())))
+              this.chambre4.add([article.qte,article.nom]);
+          break;
+
+          case 'FA0008' :
+          case 'FA0010' :
+          case 'FA0011' :
+            if(!this.containsNomAndUpdateQte(this.chambre2,article.nom!.toString(),parseFloat(article.qte!.toString())))
+              this.chambre2.add([article.qte,article.nom]);
+          break;
+
+          default:
+          break;
+        }
+      })
+    });
+  }
+ 
+  containsNomAndUpdateQte(set: Set<ExcelJS.CellValue[]> ,nom: string, qte: number): boolean {
+    for (let item of set) {
+        if (item[1] === nom) {
+            // Modify the qte value by adding the new qte
+            item[0] = (item[0] as number) + qte;
+
+            // Since Set does not allow direct modification, we need to remove and re-add the item
+            set.delete(item);
+            set.add(item);
+
+            return true;
+        }
+    }
+    return false;
+  }
 
   showCommande :  any = [];
   stringAffichage : string = "";
@@ -225,9 +295,10 @@ export class ListeCommandeComponent {
   }
 
   computeTotalItems(){
-    this.trier(1);
-    this.trier(2);
-    this.trier(3);
+    this.trierAndCompute(1);
+    this.trierAndCompute(2);
+    this.trierAndCompute(3);
+
     this.generatePdf.generatePdf(this.vins,this.chambre1,this.chambre2,this.chambre3,this.chambre4,this.chambre5);
     this.softReset()
   }
