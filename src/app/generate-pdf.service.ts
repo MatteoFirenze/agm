@@ -23,7 +23,7 @@ export class GeneratePdfService {
   
     vins.forEach((column, index) => {
       vinsPage.push(column);
-      if ((index + 1) % 6 === 0 || index === vins.length - 1) {
+      if ((index + 1) % 5 === 0 || index === vins.length - 1) {
         vinsPages.push(vinsPage);
         vinsPage = [];
       }
@@ -39,7 +39,9 @@ export class GeneratePdfService {
       }
       documentContent.push({
         columns: vinsPage,
-        columnGap: 10
+        columnGap: 10,
+        style: 'column',
+        width: '15%'
       });
     });
   
