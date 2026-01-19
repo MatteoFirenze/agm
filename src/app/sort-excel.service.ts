@@ -18,7 +18,7 @@ export class SortExcelService {
    setResetCallback(callback: () => void) {
     this.resetCallback = callback;
   }  
-  sortExcel(sheet : ExcelJS.Worksheet,map : any,message:any){
+  sortExcel(sheet : ExcelJS.Worksheet, map : any, message:any, clients_nom_map:any) {
     /*Pour chaque ligne on crée un obj commande qui contient une map(article,qte) et on l'ajoute
     dans une autre map(client,première map)
     Cell D : nom de l'article
@@ -33,19 +33,19 @@ export class SortExcelService {
    let firstRow = sheet.getRow(1);
    firstRow.eachCell(cell =>{
      switch((cell + "")){
-       case "code_de_la_société": codeClient = cell.$col$row.replace(/[^A-Z]/g, '');
+       case "Partenaire/ID": codeClient = cell.$col$row.replace(/[^A-Z]/g, '');
          break;
-       case "quantité_totale": qte = cell.$col$row.replace(/[^A-Z]/g, '');;
+       case "Lignes de facture/Quantité": qte = cell.$col$row.replace(/[^A-Z]/g, '');;
          break;
-       case "référence_article" : codeArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
+       case "Lignes de facture/Produit/ID" : codeArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
          break;
-       case "nom_article" : nomArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
+       case "Lignes de facture/Produit/Nom" : nomArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
          break;
-       case "nom_de_la_société" : nomClient = cell.$col$row.replace(/[^A-Z]/g, '');
+       case "Nom d'affichage du partenaire de la facture" : nomClient = cell.$col$row.replace(/[^A-Z]/g, '');
          break;
-       case "famille" : familleArticle = cell.$col$row.replace(/[^A-Z]/g, '');
+       case "Lignes de facture/Produit/Catégorie de produits" : familleArticle = cell.$col$row.replace(/[^A-Z]/g, '');
        break;
-       case "numéro_de_document" : facture = cell.$col$row.replace(/[^A-Z]/g, '');
+       case "Lignes de facture/Numéro" : facture = cell.$col$row.replace(/[^A-Z]/g, '');
        break;
        default : break;
      }
@@ -62,7 +62,7 @@ export class SortExcelService {
       let client : Client = new clientImpl();
       client.nom = row.getCell(nomClient+"").value;
       client.facture = row.getCell(facture+"").value;
-      if (client.facture !== "numéro_de_document" && client.facture !== null) {
+      if (client.facture !== "Lignes de facture/Numéro" && client.facture !== null) {
         let commande : Commande = new commandeImpl();
         let ligneCommande : LigneCommande = new ligneCommandeImpl();
  
@@ -73,10 +73,11 @@ export class SortExcelService {
         let codeDeArticle = row.getCell(codeArticle+"").value;
         commande.article.set(codeDeArticle, ligneCommande);
  
-        if(!map.has(JSON.stringify(client))) //si le client n'est pas encore présent dans la map
-          map.set(JSON.stringify(client),commande);
-        else {
-          let commandeClient = map.get(JSON.stringify(client));
+        if(!map.has(client.facture)){ //si le client n'est pas encore présent dans la map
+          map.set(client.facture,commande);
+          clients_nom_map.set(client.facture,client.nom);
+        } else {
+          let commandeClient = map.get(client.facture);
  
           if(commandeClient?.article.has(codeDeArticle)){ //si l'article est déjà présent
             commandeClient.article.set(codeDeArticle + (compteur+""), ligneCommande);

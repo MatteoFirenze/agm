@@ -23,7 +23,9 @@ export class ListeCommandeComponent {
   tournee1 : any = [];
   tournee2 : any = [];
   map : Map<string,Commande> = new Map();
+  clients_nom_map : Map<string,string> = new Map();
   sheet!: ExcelJS.Worksheet;
+JSON: any;
   constructor(
     private readExcel : ReadExcelService,
     private message: MessageService,
@@ -111,15 +113,14 @@ export class ListeCommandeComponent {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as Buffer);
 
-     this.sheet =  workbook.getWorksheet(1);
+    this.sheet =  workbook.getWorksheet(1);
     this.enableButton();
-    this.sortExcel.sortExcel(this.sheet,this.map,this.message);
+    this.sortExcel.sortExcel(this.sheet,this.map,this.message, this.clients_nom_map);
     
-      for(let client of this.map.keys()){
-        let cli = JSON.parse(client);
-        this.clients.push(cli);
-      }
+    for(let client of this.map.keys()){
+      this.clients.push(client);
     }
+  }
     
  async imprimer(num : any){ 
     this.trier(num);
@@ -146,30 +147,30 @@ export class ListeCommandeComponent {
         break;
     }
     this.numero.forEach((client: any) => {
-      let commande = this.map.get(JSON.stringify(client));
+      let commande = this.map.get(client);
       commande?.article.forEach(article=>{
         switch(article.famille){
 
-          case 'FA0001':
-          case 'FA0004': this.vins.add([article.qte,article.nom]);
+          case 'FA0001 - FA0001':
+          case 'FA0004 - FA0004': this.vins.add([article.qte,article.nom]);
           break;
 
-          case 'FA0002': this.chambre3.add([article.qte,article.nom]);
+          case 'FA0002 - FA0002': this.chambre3.add([article.qte,article.nom]);
           break;
 
-          case 'FA0003': this.chambre1.add([article.qte,article.nom]);
+          case 'FA0003 - FA0003': this.chambre1.add([article.qte,article.nom]);
           break;
 
-          case 'FA0006':
-          case 'FA0007': this.chambre5.add([article.qte,article.nom]);
+          case 'FA0006 - FA0006':
+          case 'FA0007 - FA0007': this.chambre5.add([article.qte,article.nom]);
           break;
 
-          case 'FA0009' : this.chambre4.add([article.qte,article.nom]);
+          case 'FA0009 - FA0009' : this.chambre4.add([article.qte,article.nom]);
           break;
 
-          case 'FA0008' :
-          case 'FA0010' :
-          case 'FA0011' : this.chambre2.add([article.qte,article.nom]);
+          case 'FA0008 - FA0008' :
+          case 'FA0010 - FA0010' :
+          case 'FA0011 - FA0011' : this.chambre2.add([article.qte,article.nom]);
           break;
 
           default:
@@ -190,40 +191,40 @@ export class ListeCommandeComponent {
         break;
     }
     this.numero.forEach((client: any) => {
-      let commande = this.map.get(JSON.stringify(client));
+      let commande = this.map.get(client);
       commande?.article.forEach(article=>{
         switch(article.famille){
 
-          case 'FA0001':
-          case 'FA0004': 
+          case 'FA0001 - FA0001':
+          case 'FA0004 - FA0004': 
             if(!this.containsNomAndUpdateQte(this.vins,article.nom!.toString(),parseInt(article.qte!.toString())))
               this.vins.add([article.qte,article.nom]);
           break;
 
-          case 'FA0002':  
+          case 'FA0002 - FA0002':  
             if(!this.containsNomAndUpdateQte(this.chambre3,article.nom!.toString(),parseFloat(article.qte!.toString())))
               this.chambre3.add([article.qte,article.nom]);
           break;
 
-          case 'FA0003':
+          case 'FA0003 - FA0003':
             if(!this.containsNomAndUpdateQte(this.chambre1,article.nom!.toString(),parseFloat(article.qte!.toString())))
               this.chambre1.add([article.qte,article.nom]);
           break;
 
-          case 'FA0006':
-          case 'FA0007':
+          case 'FA0006 - FA0006':
+          case 'FA0007 - FA0007':
             if(!this.containsNomAndUpdateQte(this.chambre5,article.nom!.toString(),parseFloat(article.qte!.toString())))
               this.chambre5.add([article.qte,article.nom]);
           break;
 
-          case 'FA0009' : 
+          case 'FA0009 - FA0009' : 
             if(!this.containsNomAndUpdateQte(this.chambre4,article.nom!.toString(),parseFloat(article.qte!.toString())))
               this.chambre4.add([article.qte,article.nom]);
           break;
 
-          case 'FA0008' :
-          case 'FA0010' :
-          case 'FA0011' :
+          case 'FA0008 - FA0008' :
+          case 'FA0010 - FA0010' :
+          case 'FA0011 - FA0011' :
             if(!this.containsNomAndUpdateQte(this.chambre2,article.nom!.toString(),parseFloat(article.qte!.toString())))
               this.chambre2.add([article.qte,article.nom]);
           break;
@@ -253,9 +254,9 @@ export class ListeCommandeComponent {
 
   showCommande :  any = [];
   stringAffichage : string = "";
-  developperFacture(client :ExcelJS.CellValue){
+  developperFacture(client :string){
     this.stringAffichage = "";
-    let commandeClient = this.map.get(JSON.stringify(client));
+    let commandeClient = this.map.get(client);
     commandeClient?.article.forEach((ligne)=>{
       this.stringAffichage += (ligne.qte +" "+ligne.nom+"<br>");
     });
@@ -267,7 +268,7 @@ export class ListeCommandeComponent {
     this.visible = true;
   }
 
-  deleteClient(client :ExcelJS.CellValue){
+  deleteClient(client :string){
     this.confirmation.confirm({
       message: 'Etes-vous certain de vouloir supprimer cette commande?',
       header: 'Confirmation',
@@ -276,19 +277,19 @@ export class ListeCommandeComponent {
       acceptButtonStyleClass: 'custom-accept-button',
       rejectButtonStyleClass: 'custom-reject-button',
       accept:()=>{
-        this.map.delete(JSON.stringify(client));
+        this.map.delete(client);
         this.removeClientFromList(this.clients, client);
         this.removeClientFromList(this.tournee1, client);
         this.removeClientFromList(this.tournee2, client);
       },
       reject:()=>{}
-  });
+    });
    
   }
 
 // Helper method to remove a client from a specific array
-  removeClientFromList(list: any[], client: ExcelJS.CellValue) {
-    const index = list.findIndex(item => JSON.stringify(item) === JSON.stringify(client));
+  removeClientFromList(list: any[], client: string) {
+    const index = list.findIndex(item => item === client);
     if (index > -1) {
       list.splice(index, 1); // Remove the client from the array
     }
@@ -335,12 +336,10 @@ export class ListeCommandeComponent {
 
   isButtonDisabled: boolean = true;
 
-  // Function to disable the button
   disableButton() {
     this.isButtonDisabled = true;
   }
 
-  // Function to enable the button
   enableButton() {
     this.isButtonDisabled = false;
   }
