@@ -33,19 +33,19 @@ export class SortExcelService {
    let firstRow = sheet.getRow(1);
    firstRow.eachCell(cell =>{
      switch((cell + "")){
-       case "Partenaire/ID": codeClient = cell.$col$row.replace(/[^A-Z]/g, '');
+       case "Client/ID": codeClient = cell.$col$row.replace(/[^A-Z]/g, '');
          break;
-       case "Lignes de facture/Quantité": qte = cell.$col$row.replace(/[^A-Z]/g, '');;
+       case "Lignes de commande/Quantité": qte = cell.$col$row.replace(/[^A-Z]/g, '');;
          break;
-       case "Lignes de facture/Produit/ID" : codeArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
+       case "Lignes de commande/Produit/ID" : codeArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
          break;
-       case "Lignes de facture/Produit/Nom" : nomArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
+       case "Lignes de commande/Produit" : nomArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
          break;
-       case "Nom d'affichage du partenaire de la facture" : nomClient = cell.$col$row.replace(/[^A-Z]/g, '');
+       case "Client" : nomClient = cell.$col$row.replace(/[^A-Z]/g, '');
          break;
-       case "Lignes de facture/Produit/Catégorie de produits" : familleArticle = cell.$col$row.replace(/[^A-Z]/g, '');
+       case "Lignes de commande/Catégorie de produits" : familleArticle = cell.$col$row.replace(/[^A-Z]/g, '');
        break;
-       case "Lignes de facture/Numéro" : facture = cell.$col$row.replace(/[^A-Z]/g, '');
+       case "Référence commande" : facture = cell.$col$row.replace(/[^A-Z]/g, '');
        break;
        default : break;
      }
@@ -57,35 +57,57 @@ export class SortExcelService {
      return;
    }
     let compteur = 0; //va servir à différencier 2x le mm article ex 1x article à retirer et une fois à ajouter
+    let lastCodeClient: ExcelJS.CellValue = null;
+    let lastNomClient: ExcelJS.CellValue = null;
+    let lastFacture: ExcelJS.CellValue = null;
     sheet.eachRow((row) => {
       compteur++;
+      if (compteur === 1) return; // skip ligne d'en-tête
+
       let client : Client = new clientImpl();
+      client.code = row.getCell(codeClient+"").value;
       client.nom = row.getCell(nomClient+"").value;
       client.facture = row.getCell(facture+"").value;
-      if (client.facture !== "Lignes de facture/Numéro" && client.facture !== null) {
+
+      // Propager le dernier client connu si la ligne n'en a pas
+      if (client.code) {
+        lastCodeClient = client.code;
+        lastNomClient = client.nom;
+      } else {
+        client.code = lastCodeClient;
+        client.nom = lastNomClient;
+      }
+
+      // Propager la dernière référence commande connue si la ligne n'en a pas
+      if (client.facture) {
+        lastFacture = client.facture;
+      } else {
+        client.facture = lastFacture;
+      }
+
+      if (client.facture !== null) {
         let commande : Commande = new commandeImpl();
         let ligneCommande : LigneCommande = new ligneCommandeImpl();
- 
+
         ligneCommande.famille = row.getCell(familleArticle+"").value;
         ligneCommande.qte = row.getCell(qte+"").value;
         ligneCommande.nom = row.getCell(nomArticle+"").value;
-        client.code = row.getCell(codeClient+"").value;
         let codeDeArticle = row.getCell(codeArticle+"").value;
         commande.article.set(codeDeArticle, ligneCommande);
- 
+
         if(!map.has(client.facture)){ //si le client n'est pas encore présent dans la map
-          map.set(client.facture,commande);
-          clients_nom_map.set(client.facture,client.nom);
+          map.set(client.facture, commande);
+          clients_nom_map.set(client.facture, client.nom);
         } else {
           let commandeClient = map.get(client.facture);
- 
+
           if(commandeClient?.article.has(codeDeArticle)){ //si l'article est déjà présent
             commandeClient.article.set(codeDeArticle + (compteur+""), ligneCommande);
           }
           else commandeClient?.article.set(codeDeArticle, ligneCommande);
         }
       }
-      }); 
+    });
   }
 } 
 
