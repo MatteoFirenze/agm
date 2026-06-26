@@ -1,190 +1,280 @@
-.imprimer{
-  width: 5%;
-  height: 5%;
-  background: none;
-	color: inherit;
-	border: none;
-	font: inherit;
-	cursor: pointer;
-	outline: inherit;
-}
-.titre{
-  margin-top: 1rem;
-  padding-bottom: 1rem;
-  font-size: large;
-  font-weight:600;
-  border-bottom: solid 0.1rem black;
-}
-.btns{
-  border: solid black 0.1rem;
-  border-radius: 0.4rem;
-  transition-duration: 0.5s;
+/* ─── Layout ─────────────────────────────────────────────── */
+.page-wrapper {
+  min-height: calc(100vh - 16vh);
+  background: #F2EDE8;
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
-.btns:hover{
-  background-color: black;
-  color: white;
-  transform: scale(1.1);
+/* ─── Toolbar ─────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 0.875rem 1.25rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  border: 1px solid #DDD3CC;
 }
-.hide-on-html {
+
+/* ─── Import ──────────────────────────────────────────────── */
+.import-hidden {
   display: none;
 }
-.spacer{
+
+.import-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 1.1rem;
+  background: #7B1E2E;
+  color: #FFFFFF;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background 0.2s, transform 0.15s;
+}
+.import-label:hover {
+  background: #9C2438;
+  transform: translateY(-1px);
+}
+.import-label svg {
+  fill: #FFFFFF;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* ─── Action button ───────────────────────────────────────── */
+.btn-action {
+  padding: 0.5rem 1.1rem;
+  border: 2px solid #7B1E2E;
+  border-radius: 8px;
+  background: transparent;
+  color: #7B1E2E;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-action:hover:not(:disabled) {
+  background: #7B1E2E;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+.btn-action:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ─── Reset button ────────────────────────────────────────── */
+.btn-reset {
+  margin-left: auto;
+  padding: 0.5rem 1.1rem;
+  border: 2px solid #B52626;
+  border-radius: 8px;
+  background: transparent;
+  color: #B52626;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-reset:hover {
+  background: #B52626;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+/* ─── Columns ─────────────────────────────────────────────── */
+.columns-wrapper {
   display: flex;
-  justify-content:space-between ;
+  gap: 1.25rem;
+  align-items: flex-start;
 }
-.goLeft{
-  text-align: start;
-  font-size:10px ;
-  font: bold;
-  margin: 0.05rem;
+
+.column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  border: 1px solid #DDD3CC;
+  overflow: hidden;
 }
-.goRight{
-  text-align: end;
-  margin: 0.05rem;
+
+/* ─── Column header ───────────────────────────────────────── */
+.column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1rem;
+  background: #7B1E2E;
+  color: #FFFFFF;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
+
+.btn-print {
+  padding: 0.32rem 0.75rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  border-radius: 6px;
+  background: transparent;
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-print:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+}
+.btn-print:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Drop list ───────────────────────────────────────────── */
+.example-list {
+  display: block;
+  min-height: 60px;
+  height: 60vh;
+  overflow-y: auto;
+}
+
+/* ─── Client item ─────────────────────────────────────────── */
+.example-box {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #EDE5DF;
+  background: #FFFFFF;
+  cursor: move;
+  transition: background 0.15s;
+}
+.example-box:hover {
+  background: #FBF8F5;
+}
+.example-box:last-child {
+  border-bottom: none;
+}
+
+.client-name {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1E1514;
+  text-align: left;
+}
+
+/* ─── Icons ───────────────────────────────────────────────── */
+.containerIcon {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.svgContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: transform 0.2s;
+}
+.svgContainer:hover {
+  transform: scale(1.25);
+}
+
+.gray {
+  height: 18px;
+  fill: #B0A5A0;
+}
+.red {
+  height: 18px;
+  fill: #B52626;
+}
+
+/* ─── CDK drag ────────────────────────────────────────────── */
+.cdk-drag-preview {
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: #FFFFFF;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+.cdk-drag-placeholder {
+  opacity: 0;
+}
+.cdk-drag-animating {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+.example-list.cdk-drop-list-dragging .example-box:not(.cdk-drag-placeholder) {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* ─── Toast ───────────────────────────────────────────────── */
+.custom-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+}
+
+/* ─── PrimeNG confirm dialog ──────────────────────────────── */
+::ng-deep .custom-accept-button {
+  background-color: #B52626 !important;
+  border: none !important;
+  transition: all 150ms ease-in-out;
+}
+::ng-deep .custom-accept-button:hover {
+  background-color: #D63030 !important;
+  transform: scale(1.04);
+}
+::ng-deep .custom-reject-button {
+  background-color: #9E9590 !important;
+  border: none !important;
+  transition: all 150ms ease-in-out;
+}
+::ng-deep .custom-reject-button:hover {
+  background-color: #8C8480 !important;
+  transform: scale(1.04);
+}
+
+/* ─── Print styles (used by pdfmake) ─────────────────────── */
+.hide-on-html { display: none; }
+.spacer { display: flex; justify-content: space-between; }
+.goLeft { text-align: start; font-size: 10px; font-weight: bold; margin: 0.05rem; }
+.goRight { text-align: end; margin: 0.05rem; }
 .tab {
   width: 100%;
   font-size: 10px;
-  border-collapse: collapse; /* Fusionne les bordures des cellules */
+  border-collapse: collapse;
   overflow: visible !important;
   page-break-inside: avoid;
   break-after: auto;
 }
-.tab tr{
-   page-break-inside: avoid;
-   break-after: auto;
-}
+.tab tr { page-break-inside: avoid; break-after: auto; }
 .tab td {
-  width: fit-content;
   border-left: 0.1px solid black;
   border-right: 0.1px solid black;
   text-align: start;
   overflow: auto;
-  white-space:normal;
+  white-space: normal;
   word-wrap: break-word;
-  padding-left:0.4rem;
+  padding-left: 0.4rem;
   padding-right: 0.4rem;
   word-spacing: 0.8em;
   break-after: auto;
-}
-svg{
-  width: 100%;
-}
-
-.liste{
-  width: 50%;
-  height: 73vh;
-}
-
-.example-list {
-    text-align:center;
-    font-size: large;
-    width: 35vh;
-    height: 60vh;
-    max-width: 100%;
-    min-height: 60px;
-    display: block;
-    background-color: rgb(240, 240, 240);
-    border-radius: 0.8rem;
-    overflow: auto;
-    margin-left:0.4rem;
-    margin-right: 0.4rem;
-  }
-  
-  .example-box {
-    padding: 20px 10px;
-    border-bottom: solid 1px #ccc;
-    color: rgba(0, 0, 0, 0.87);
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    box-sizing: border-box;
-    cursor: move;
-    background-color: rgb(240, 240, 240);
-    font-size: 14px;
-    text-align: start;
-  }
- 
-  .containerIcon{
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-  
-  .cdk-drag-preview {
-    box-sizing: border-box;
-    border-radius: 4px;
-    box-shadow: 0 5px 5px -3px rgba(0, 0, 0, 0.2),
-                0 8px 10px 1px rgba(0, 0, 0, 0.14),
-                0 3px 14px 2px rgba(0, 0, 0, 0.12);
-  }
-  
-  .cdk-drag-placeholder {
-    opacity: 0;
-  }
-  
-  .cdk-drag-animating {
-    transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-  }
-  
-  .example-box:last-child {
-    border: none;
-  }
-  
-  .example-list.cdk-drop-list-dragging .example-box:not(.cdk-drag-placeholder) {
-    transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-  }
-  .custom-message {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-  }
-  .svgContainer{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    transition-duration: 0.5s;
-}
-.svgContainer:hover{
-  transform: scale(1.3);
-}
-.gray{
-  height: 20px;
-  fill: #989898;
-}
-
-.red{
-  height: 20px;
-  fill: rgb(186, 6, 6);
-}
-
-::ng-deep .custom-accept-button{
-  background-color: rgb(226, 18, 18);
-  border: none;
-  outline: red;
-  box-shadow:
-    0 0 0 2px white, /* Espace non coloré */
-    0 0 0 4px red !important;
-    transition: all ease-in-out 150ms;
-  }
-
-  ::ng-deep .custom-accept-button:hover {
-    background-color: rgb(255, 0, 0) !important;
-    transform: scale(1.04);
-}
-
-::ng-deep .custom-reject-button{
-  background-color: #989898 !important;
-  border: none;
-  transition: all ease-in-out 150ms;
-}
-
-::ng-deep .custom-reject-button:hover {
-  background-color: #989898 !important;
-  transform: scale(1.04);
 }
