@@ -19,33 +19,34 @@ export class SortExcelService {
     this.resetCallback = callback;
   }  
   sortExcel(sheet : ExcelJS.Worksheet, map : any, message:any, clients_nom_map:any) {
-    /*Pour chaque ligne on crée un obj commande qui contient une map(article,qte) et on l'ajoute
-    dans une autre map(client,première map)
-    Cell D : nom de l'article
-    Cell C : code de l'article
-    Cell I : famille article
-    Cell B : qte article
-    Cell F : code client
-    Cell G : nom client
+    /*Export Odoo "Écriture comptable" : une ligne = une ligne de facture.
+    Les colonnes sont retrouvées par leur en-tête (ligne 1), pas par leur position.
+    Le numéro de facture est répété sur chaque ligne ; le client, lui, n'est
+    rempli que sur la première ligne de chaque facture -> on le propage.
+    On regroupe les lignes par numéro de facture : map(facture, commande),
+    la commande contenant une map(code article, ligne).
     */
-   let codeClient: ExcelJS.CellValue,facture: ExcelJS.CellValue,nomClient: ExcelJS.CellValue,codeArticle: ExcelJS.CellValue,nomArticle: ExcelJS.CellValue,familleArticle: ExcelJS.CellValue,qte : ExcelJS.CellValue;
+   let codeClient: ExcelJS.CellValue,facture: ExcelJS.CellValue,nomClient: ExcelJS.CellValue,codeArticle: ExcelJS.CellValue,nomArticle: ExcelJS.CellValue,familleArticle: ExcelJS.CellValue,qte : ExcelJS.CellValue,refArticle : ExcelJS.CellValue;
 
    let firstRow = sheet.getRow(1);
    firstRow.eachCell(cell =>{
      switch((cell + "")){
-       case "Client/ID": codeClient = cell.$col$row.replace(/[^A-Z]/g, '');
+       case "Partenaire/ID": codeClient = cell.$col$row.replace(/[^A-Z]/g, '');
          break;
-       case "Lignes de commande/Quantité": qte = cell.$col$row.replace(/[^A-Z]/g, '');;
+       case "Lignes de facture/Quantité": qte = cell.$col$row.replace(/[^A-Z]/g, '');;
          break;
-       case "Lignes de commande/Produit/ID" : codeArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
+       case "Lignes de facture/Produit/ID" : codeArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
          break;
-       case "Lignes de commande/Produit" : nomArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
+       case "Lignes de facture/Produit/Nom" : nomArticle = cell.$col$row.replace(/[^A-Z]/g, '');;
          break;
-       case "Client" : nomClient = cell.$col$row.replace(/[^A-Z]/g, '');
+       case "Nom d'affichage du partenaire de la facture" : nomClient = cell.$col$row.replace(/[^A-Z]/g, '');
          break;
-       case "Lignes de commande/Catégorie de produits" : familleArticle = cell.$col$row.replace(/[^A-Z]/g, '');
+       case "Lignes de facture/Produit/Catégorie de produits" : familleArticle = cell.$col$row.replace(/[^A-Z]/g, '');
        break;
-       case "Référence commande" : facture = cell.$col$row.replace(/[^A-Z]/g, '');
+       case "Lignes de facture/Numéro" : facture = cell.$col$row.replace(/[^A-Z]/g, '');
+       break;
+       //colonne facultative : seule la mise à jour de l'inventaire en a besoin
+       case "Lignes de facture/Produit/Référence interne" : refArticle = cell.$col$row.replace(/[^A-Z]/g, '');
        break;
        default : break;
      }
@@ -78,21 +79,27 @@ export class SortExcelService {
         client.nom = lastNomClient;
       }
 
-      // Propager la dernière référence commande connue si la ligne n'en a pas
+      // Filet de sécurité : si un export ne remplit le numéro de facture que sur
+      // la première ligne, on propage le dernier numéro connu
       if (client.facture) {
         lastFacture = client.facture;
       } else {
         client.facture = lastFacture;
       }
 
-      if (client.facture !== null) {
+      let codeDeArticle = row.getCell(codeArticle+"").value;
+      let nomDeArticle = row.getCell(nomArticle+"").value;
+
+      // On ignore les lignes qui ne portent pas de produit (lignes de section,
+      // de note ou d'écriture sans article)
+      if (client.facture !== null && (codeDeArticle !== null || nomDeArticle !== null)) {
         let commande : Commande = new commandeImpl();
         let ligneCommande : LigneCommande = new ligneCommandeImpl();
 
         ligneCommande.famille = row.getCell(familleArticle+"").value;
         ligneCommande.qte = row.getCell(qte+"").value;
-        ligneCommande.nom = row.getCell(nomArticle+"").value;
-        let codeDeArticle = row.getCell(codeArticle+"").value;
+        ligneCommande.nom = nomDeArticle;
+        ligneCommande.ref = refArticle != null ? row.getCell(refArticle+"").value : null;
         commande.article.set(codeDeArticle, ligneCommande);
 
         if(!map.has(client.facture)){ //si le client n'est pas encore présent dans la map
@@ -123,6 +130,7 @@ class ligneCommandeImpl implements LigneCommande{
   qte: ExcelJS.CellValue;
   famille: ExcelJS.CellValue;
   nom: ExcelJS.CellValue;
+  ref: ExcelJS.CellValue;
   constructor(){
   }
 }

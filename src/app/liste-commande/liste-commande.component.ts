@@ -9,6 +9,7 @@ import { MessageService } from 'primeng/api';
 import { ReadExcelService } from '../read-excel.service';
 import { GeneratePdfService } from '../generate-pdf.service';
 import { SortExcelService } from '../sort-excel.service';
+import { UpdateInventaireService } from '../update-inventaire.service';
 import { ConfirmationService } from 'primeng/api';
   
 @Component({
@@ -31,12 +32,13 @@ JSON: any;
     private message: MessageService,
     private generatePdf : GeneratePdfService,
     private sortExcel : SortExcelService,
+    private updateInventaire : UpdateInventaireService,
     private confirmation: ConfirmationService,
     ) {}
 
     ngOnInit(): void {
       // Pass the reset function to the service
-      this.sortExcel.setResetCallback(() => this.reset());
+      this.sortExcel.setResetCallback(() => this.resetFactures());
     }
 
   drop(event: CdkDragDrop<any[]>) {
@@ -108,8 +110,11 @@ JSON: any;
     const fileRes = event.currentTarget.files[0];
     if(!fileRes)
       return;
-    this.readExcel.readFile(fileRes);
-    const buffer = await this.readExcel.readFile(event.target.files[0]);
+    // On repart d'un état propre : sinon un 2e import s'ajoute au précédent
+    // et duplique les factures déjà réparties dans les tournées.
+    // L'inventaire déjà importé, lui, est conservé.
+    this.resetFactures();
+    const buffer = await this.readExcel.readFile(fileRes);
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as Buffer);
 
@@ -122,6 +127,57 @@ JSON: any;
     }
   }
     
+  //Fichier d'inventaire à mettre à jour, gardé tel quel : on le relit à chaque
+  //génération pour que le bouton reste rejouable sans réimporter
+  inventaire : ExcelJS.Workbook | null = null;
+  nomInventaire : string = '';
+
+  async importerInventaire(event: any) {
+    const fichier = event.currentTarget.files[0];
+    if(!fichier)
+      return;
+
+    const buffer = await this.readExcel.readFile(fichier);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as Buffer);
+
+    this.inventaire = workbook;
+    this.nomInventaire = fichier.name;
+  }
+
+  get inventaireMajPossible() : boolean {
+    return this.map.size > 0 && this.inventaire !== null;
+  }
+
+  async mettreAJourInventaire(){
+    if(!this.inventaireMajPossible)
+      return;
+
+    const totaux = this.updateInventaire.totauxParReference(this.map);
+    if(totaux.size === 0){
+      this.message.add({ severity: 'error', summary: 'Erreur', detail: "Aucune référence interne dans le fichier de factures. Vérifiez que la colonne « Lignes de facture/Produit/Référence interne » est bien présente à l'export." });
+      return;
+    }
+
+    try {
+      const resultat = await this.updateInventaire.genererInventaireMisAJour(
+        this.inventaire!,
+        totaux,
+        this.updateInventaire.nomFichierSortie(this.nomInventaire)
+      );
+
+      this.message.add({ severity: 'success', summary: 'Inventaire mis à jour', detail: resultat.lignesMisesAJour + ' produit(s) recalculé(s) sur ' + totaux.size + ' référence(s) facturée(s).' });
+
+      if(resultat.referencesInconnues.length > 0){
+        const apercu = resultat.referencesInconnues.slice(0, 10).map(r => r.ref + ' (' + r.nom + ')').join(', ');
+        const reste = resultat.referencesInconnues.length - 10;
+        this.message.add({ severity: 'warn', summary: "Références introuvables dans l'inventaire", detail: resultat.referencesInconnues.length + " référence(s) facturée(s) sont absentes du fichier d'inventaire et n'ont pas été déduites : " + apercu + (reste > 0 ? ' et ' + reste + ' autre(s).' : '.') });
+      }
+    } catch (erreur : any) {
+      this.message.add({ severity: 'error', summary: 'Erreur', detail: erreur?.message || "Impossible de générer le fichier d'inventaire." });
+    }
+  }
+
  async imprimer(num : any){ 
     this.trier(num);
     this.generatePdf.generatePdf(this.vins,this.chambre1,this.chambre2,this.chambre3,this.chambre4,this.chambre5);
@@ -193,13 +249,8 @@ JSON: any;
     this.numero.forEach((client: any) => {
       let commande = this.map.get(client);
       commande?.article.forEach(article=>{
+        //Les alcools et vins (FA0001/FA0004) ne sont pas comptés dans le total produits
         switch(article.famille){
-
-          case 'FA0001 - FA0001':
-          case 'FA0004 - FA0004': 
-            if(!this.containsNomAndUpdateQte(this.vins,article.nom!.toString(),parseInt(article.qte!.toString())))
-              this.vins.add([article.qte,article.nom]);
-          break;
 
           case 'FA0002 - FA0002':  
             if(!this.containsNomAndUpdateQte(this.chambre3,article.nom!.toString(),parseFloat(article.qte!.toString())))
@@ -313,23 +364,32 @@ JSON: any;
     this.chambre5.clear();
   }
 
-  reset() {  
-    let fileInput = document.querySelector('.import') as HTMLInputElement;
+  //Bouton Réinitialiser : on repart de zéro, inventaire compris
+  reset() {
+    this.resetFactures();
+
+    let inventaireInput = document.querySelector('.import-inventaire') as HTMLInputElement;
+    if (inventaireInput) {
+      inventaireInput.value = '';
+    }
+    this.inventaire = null;
+    this.nomInventaire = '';
+  }
+
+  //Remise à zéro des seules factures, utilisée aussi avant chaque nouvel import
+  private resetFactures() {
+    let fileInput = document.querySelector('.import-factures') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = ''; // Efface la sélection du fichier
     }
-  
+
     this.clients = [];
     this.tournee1 = [];
     this.tournee2 = [];
 
     this.map.clear();
-    this.vins.clear();
-    this.chambre1.clear();
-    this.chambre2.clear();
-    this.chambre3.clear();
-    this.chambre4.clear();
-    this.chambre5.clear();
+    this.clients_nom_map.clear();
+    this.softReset();
 
     this.disableButton();
   }
