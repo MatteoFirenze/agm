@@ -1,29 +1,25 @@
 import { TestBed } from '@angular/core/testing';
-import { RouterTestingModule } from '@angular/router/testing';
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { AppComponent } from './app.component';
 
 describe('AppComponent', () => {
   beforeEach(() => TestBed.configureTestingModule({
-    imports: [RouterTestingModule],
-    declarations: [AppComponent]
+    declarations: [AppComponent],
+    schemas: [NO_ERRORS_SCHEMA],
   }));
 
-  it('should create the app', () => {
+  it('se crée', () => {
     const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
+    expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it(`should have as title 'agm'`, () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app.title).toEqual('agm');
-  });
-
-  it('should render title', () => {
+  it('assemble l\'en-tête, la vue routée et le pied de page', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.content span')?.textContent).toContain('agm app is running!');
+    const rendu = fixture.nativeElement as HTMLElement;
+
+    expect(rendu.querySelector('app-header')).not.toBeNull();
+    expect(rendu.querySelector('router-outlet')).not.toBeNull();
+    expect(rendu.querySelector('app-footer')).not.toBeNull();
   });
 });

@@ -23,14 +23,13 @@
       "ESNext",
       "dom"
     ],
-    "types": ["pdfmake"]
+    "types": ["node", "pdfmake"]
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
     "strictInjectionParameters": true,
     "strictInputAccessModifiers": true,
-    "strictTemplates": true,
-    "types": ["node"],
+    "strictTemplates": true
   },
   
 }

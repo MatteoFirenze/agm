@@ -4,11 +4,14 @@
   "compilerOptions": {
     "outDir": "./out-tsc/spec",
     "types": [
-      "jasmine"
+      "jasmine",
+      "node",
+      "pdfmake"
     ]
   },
   "include": [
     "src/**/*.spec.ts",
+    "src/app/testing/**/*.ts",
     "src/**/*.d.ts"
   ]
 }

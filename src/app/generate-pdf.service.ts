@@ -9,7 +9,15 @@ export class GeneratePdfService {
 
   constructor() { }
 
+  /*Construit puis télécharge le PDF*/
   generatePdf(vini: any, ch1: any, ch2: any, ch3: any, ch4: any, ch5: any) {
+    const documentDefinition = this.construireDocument(vini, ch1, ch2, ch3, ch4, ch5);
+    pdfMake.createPdf(documentDefinition).download('Liste.pdf');
+  }
+
+  /*Définition du document pdfmake, isolée du téléchargement pour être vérifiable
+  par les tests sans ouvrir de fichier*/
+  construireDocument(vini: any, ch1: any, ch2: any, ch3: any, ch4: any, ch5: any) : any {
     const vins = this.processDataForColumns(Array.from(vini), 15);
     const poissons = this.processDataForColumns(Array.from(ch1), 22);
     const glaceChampi = this.processDataForColumns(Array.from(ch2), 22);
@@ -30,23 +38,28 @@ export class GeneratePdfService {
     });
   
     const documentContent = [];
-    documentContent.push({text: 'Vini', style: 'header'});
-  
-    // Add Vini columns, inserting a page break when necessary
-    vinsPages.forEach((vinsPage, pageIndex) => {
-      if (pageIndex > 0) {
-        documentContent.push({ text: '', pageBreak: 'before' });
-      }
-      documentContent.push({
-        columns: vinsPage,
-        columnGap: 10,
-        style: 'column',
-        width: '15%'
+
+    // La section Vini est absente du total produits : on ne l'imprime que
+    // si elle contient quelque chose, sinon le PDF démarre sur une page vide
+    if (vins.length > 0) {
+      documentContent.push({text: 'Vini', style: 'header'});
+
+      // Add Vini columns, inserting a page break when necessary
+      vinsPages.forEach((vinsPage, pageIndex) => {
+        if (pageIndex > 0) {
+          documentContent.push({ text: '', pageBreak: 'before' });
+        }
+        documentContent.push({
+          columns: vinsPage,
+          columnGap: 10,
+          style: 'column',
+          width: '15%'
+        });
       });
-    });
-  
-    // Add a new page after Vini if necessary
-    documentContent.push({ text: '', pageBreak: 'before' });
+
+      // Add a new page after Vini if necessary
+      documentContent.push({ text: '', pageBreak: 'before' });
+    }
   
     // Add the other sections with column widths to allow text wrapping
     documentContent.push(
@@ -124,8 +137,8 @@ export class GeneratePdfService {
         }
       }
     };
-  
-    pdfMake.createPdf(documentDefinition).download('Liste.pdf');
+
+    return documentDefinition;
   }
   
   
