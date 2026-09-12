@@ -75,6 +75,16 @@
   color: #6F635C;
 }
 
+/* Format reconnu à l'import : l'utilisateur vérifie d'un coup d'œil que le
+   fichier a bien été lu comme il le croit */
+.format-detecte {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #7B1E2E;
+}
+
 /* ─── Action button ───────────────────────────────────────── */
 .btn-action {
   padding: 0.5rem 1.1rem;

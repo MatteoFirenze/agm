@@ -45,6 +45,7 @@ async function ecrire(workbook, nom) {
   console.log('Génération des fixtures dans ' + path.relative(RACINE, SORTIE) + ' :');
 
   await ecrire(await f.construireEcritureComptable(f.FACTURES_STANDARD), 'factures.xlsx');
+  await ecrire(await f.construireTourneeDevis(f.COMMANDES_STANDARD), 'tournee_devis.xlsx');
   await ecrire(await f.construireInventaire(f.INVENTAIRE_STANDARD), 'inventaire.xlsx');
 
   // variantes utiles pour tester les cas d'erreur à la main
@@ -64,6 +65,15 @@ async function ecrire(workbook, nom) {
   console.log('  ZZZZ    7/8   -> 7/8     (non vendu)');
   console.log('  AMASC  12/12  -> 12/12   (vin, exclu)');
   console.log('  1 avertissement : ARAXL absent de l\'inventaire');
+
+  console.log("\nAttendu en important tournee_devis.xlsx : format « Tournée devis » reconnu,");
+  console.log("  3 commandes S00891 / S00892 / S00893, toutes du même client PRIVE BON");
+  console.log("  1 avertissement : OLIO TEST 5LT, sans catégorie de produits");
+  console.log("\nPuis avec inventaire.xlsx et « Mettre à jour l'inventaire » :");
+  console.log("  SCAM  100/110 -> 97/107  (3 vendus)");
+  console.log("  OREC   50/50  -> 42/42   (8 vendus)");
+  console.log("  GRIP et NER   inchangés  (vins, exclus)");
+  console.log("  1 avertissement : OLI5 absent de l'inventaire");
 })().catch(erreur => {
   console.error(erreur);
   process.exit(1);

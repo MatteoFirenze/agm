@@ -8,8 +8,9 @@ import * as ExcelJS from 'exceljs' ;
 import { ListeCommandeComponent } from './liste-commande.component';
 import { GeneratePdfService } from '../generate-pdf.service';
 import {
-  construireEcritureComptable, construireInventaire, relireBuffer, lignesDe,
-  FAMILLE, FACTURES_STANDARD, INVENTAIRE_STANDARD, FactureFixture,
+  construireEcritureComptable, construireTourneeDevis, construireInventaire,
+  relireBuffer, lignesDe, lignesParTitre,
+  FAMILLE, FACTURES_STANDARD, COMMANDES_STANDARD, INVENTAIRE_STANDARD, FactureFixture,
 } from '../testing/excel-fixtures';
 
 describe('ListeCommandeComponent', () => {
@@ -57,6 +58,10 @@ describe('ListeCommandeComponent', () => {
     await component.readAndSortExcel(await fichier(await construireEcritureComptable(factures), 'factures.xlsx'));
   }
 
+  async function importerTournee(commandes : FactureFixture[] = COMMANDES_STANDARD) {
+    await component.readAndSortExcel(await fichier(await construireTourneeDevis(commandes), 'tournee.xlsx'));
+  }
+
   async function importerInventaire(produits = INVENTAIRE_STANDARD) {
     await component.importerInventaire(await fichier(await construireInventaire(produits), 'inventaire.xlsx'));
   }
@@ -74,6 +79,19 @@ describe('ListeCommandeComponent', () => {
     spyOn(URL, 'createObjectURL').and.callFake((objet : any) => { capture.blob = objet; return 'blob:test'; });
     spyOn(URL, 'revokeObjectURL').and.stub();
     return capture;
+  }
+
+  //intitulés du fichier d'inventaire produit, pour ne pas figer l'ordre des colonnes
+  const REF = 'Référence interne', DISPO = 'Quantité disponible', PREVU = 'Quantité prévue';
+
+  /*Le fichier d'inventaire généré, une ligne par produit lue par intitulé*/
+  async function inventaireGenere(capture : { blob : Blob | null }) {
+    const feuille = await relireBuffer(await capture.blob!.arrayBuffer());
+    const produits = lignesParTitre(feuille);
+    return {
+      titres: lignesDe(feuille)[0],
+      parRef: (ref : string) => produits.find(l => String(l[REF]) === ref)!,
+    };
   }
 
   /*Trie [qte, nom] par nom pour comparer sans dépendre de l'ordre d'insertion*/
@@ -307,12 +325,11 @@ describe('ListeCommandeComponent', () => {
 
       await component.mettreAJourInventaire();
 
-      const feuille = await relireBuffer(await capture.blob!.arrayBuffer());
-      const lignes = lignesDe(feuille);
-      const scam = lignes.find(l => l[1] === 'SCAM')!;
+      const inventaire = await inventaireGenere(capture);
+      const scam = inventaire.parRef('SCAM');
 
-      expect(lignes[0].length).withContext('2 colonnes retirées').toBe(8);
-      expect([scam[6], scam[7]]).toEqual([65, 75]);
+      expect(inventaire.titres.length).withContext('2 colonnes retirées').toBe(8);
+      expect([scam[DISPO], scam[PREVU]]).toEqual([65, 75]);
     });
 
     it('n\'applique pas les alcools au stock', async () => {
@@ -423,6 +440,139 @@ describe('ListeCommandeComponent', () => {
       await importerFactures();
 
       expect(component.clients.length).toBe(3);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('import d\'une tournée devis', () => {
+
+    it('reconnaît le format sans que l\'utilisateur ait à le dire', async () => {
+      await importerTournee();
+
+      expect(component.format!.nom).toBe('Tournée devis');
+      expect(component.nomFactures).toBe('tournee.xlsx');
+      expect(component.isButtonDisabled).toBeFalse();
+    });
+
+    it('liste une entrée par référence commande, le client étant le même partout', async () => {
+      await importerTournee();
+
+      expect(component.clients).toEqual(['S00891', 'S00892', 'S00893']);
+      expect(component.clients_nom_map.get('S00892')).toBe('PRIVE BON');
+    });
+
+    it('affiche le détail d\'une commande sans le préfixe de référence', async () => {
+      await importerTournee();
+      component.developperFacture('S00893');
+
+      expect(component.stringAffichage).toContain('8 ORECCHIETTE TEST 1KG');
+      expect(component.stringAffichage).not.toContain('[OREC]');
+    });
+
+    it('range les produits dans les bonnes chambres et écarte les vins', async () => {
+      await importerTournee();
+      component.computeTotalItems();
+
+      expect(envoyeAuPdf[POISSONS]).toEqual([[3, 'SCAMPI TEST 1KG']]);
+      expect(envoyeAuPdf[PATES_FRAICHES]).toEqual([[8, 'ORECCHIETTE TEST 1KG']]);
+      expect(envoyeAuPdf[VINS]).withContext('les vins sont hors total produits').toEqual([]);
+    });
+
+    it('avertit du produit sans catégorie, absent de toutes les listes', async () => {
+      await importerTournee();
+      component.computeTotalItems();
+
+      const alerte = messages.find(m => m.summary === 'Produits sans catégorie')!;
+      expect(alerte.detail).toContain('OLIO TEST 5LT');
+      expect(envoyeAuPdf.every(e => e.every(l => l[1] !== 'OLIO TEST 5LT'))).toBeTrue();
+    });
+
+    it('déduit du stock les références lues entre crochets', async () => {
+      const capture = interceptTelechargement();
+      await importerTournee();
+      await importerInventaire();
+
+      await component.mettreAJourInventaire();
+
+      const inventaire = await inventaireGenere(capture);
+
+      expect([inventaire.parRef('SCAM')[DISPO], inventaire.parRef('SCAM')[PREVU]])
+        .withContext('100/110 moins 3').toEqual([97, 107]);
+      expect([inventaire.parRef('OREC')[DISPO], inventaire.parRef('OREC')[PREVU]])
+        .withContext('50/50 moins 8').toEqual([42, 42]);
+    });
+
+    it('laisse les vins hors de l\'inventaire comme pour une facture', async () => {
+      const capture = interceptTelechargement();
+      await importerTournee();
+      await importerInventaire();
+
+      await component.mettreAJourInventaire();
+
+      const inventaire = await inventaireGenere(capture);
+      expect(inventaire.parRef('AMASC')[DISPO]).toBe(12);
+      expect(messages.find(m => m.severity === 'success')!.detail).toContain('2 produit(s)');
+    });
+
+    it('signale la référence absente de l\'inventaire', async () => {
+      interceptTelechargement();
+      await importerTournee();
+      await importerInventaire();
+
+      await component.mettreAJourInventaire();
+
+      const alerte = messages.find(m => m.summary === "Références introuvables dans l'inventaire")!;
+      expect(alerte.detail).toContain('OLI5');
+    });
+
+    it('remplace les factures déjà importées plutôt que de s\'y ajouter', async () => {
+      await importerFactures();
+      await importerTournee();
+
+      expect(component.clients).toEqual(['S00891', 'S00892', 'S00893']);
+      expect(component.map.size).toBe(3);
+    });
+
+    it('affiche le nom du fichier et le format dans la barre d\'outils', async () => {
+      await importerTournee();
+      fixture.detectChanges();
+
+      const chip = document.querySelector('.fichier-charge') as HTMLElement;
+      expect(chip).withContext('la puce du fichier importé doit être rendue').not.toBeNull();
+      expect(chip.textContent).toContain('tournee.xlsx');
+      expect(chip.querySelector('.format-detecte')!.textContent!.trim()).toBe('Tournée devis');
+    });
+
+    it('retire la puce du fichier à la réinitialisation', async () => {
+      await importerTournee();
+      component.reset();
+      fixture.detectChanges();
+
+      expect(document.querySelector('.format-detecte')).toBeNull();
+    });
+
+    it('oublie le format à la réinitialisation', async () => {
+      await importerTournee();
+      component.reset();
+
+      expect(component.format).toBeNull();
+      expect(component.nomFactures).toBe('');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('fichier d\'un format inconnu', () => {
+
+    it('refuse le fichier et laisse les boutons désactivés', async () => {
+      const workbook = new ExcelJS.Workbook();
+      workbook.addWorksheet('Sheet1').addRow(['Colonne A', 'Colonne B']);
+
+      await component.readAndSortExcel(await fichier(workbook, 'inconnu.xlsx'));
+
+      expect(component.format).toBeNull();
+      expect(component.isButtonDisabled).toBeTrue();
+      expect(component.clients).toEqual([]);
+      expect(messages.find(m => m.severity === 'error')).toBeDefined();
     });
   });
 });
