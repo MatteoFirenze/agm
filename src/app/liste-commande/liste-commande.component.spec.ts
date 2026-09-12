@@ -407,6 +407,76 @@ describe('ListeCommandeComponent', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
+  describe('catalogue produits', () => {
+
+    /*Le bouton du catalogue, retrouvé par son libellé*/
+    function boutonCatalogue() : HTMLButtonElement {
+      fixture.detectChanges();
+      const boutons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+      return boutons.find(b => b.textContent!.includes('Générer le catalogue'))!;
+    }
+
+    beforeEach(() => {
+      //le logo n'est pas servi pendant les tests : le catalogue doit s'en passer
+      spyOn(window, 'fetch').and.rejectWith(new Error('hors ligne'));
+    });
+
+    it('n\'est possible qu\'une fois l\'inventaire importé, sans factures', async () => {
+      expect(boutonCatalogue().disabled).withContext('rien d\'importé').toBeTrue();
+
+      await importerInventaire();
+
+      expect(boutonCatalogue().disabled).withContext('inventaire seul').toBeFalse();
+    });
+
+    it('télécharge le catalogue des articles en stock', async () => {
+      const capture = interceptTelechargement();
+      await importerInventaire();
+
+      boutonCatalogue().click();
+      await fixture.whenStable();
+
+      expect(capture.nom).toBe('catalogue_produits.html');
+      const html = await capture.blob!.text();
+      expect(html).toContain('SCAMPI TEST 1KG');
+      expect(messages.find(m => m.severity === 'success')!.detail).toContain('5 article(s)');
+    });
+
+    it('reprend les quantités de l\'inventaire importé, sans déduire les factures', async () => {
+      const capture = interceptTelechargement();
+      await importerFactures();
+      await importerInventaire();
+
+      await component.genererCatalogue();
+
+      const page = new DOMParser().parseFromString(await capture.blob!.text(), 'text/html');
+      const scampi = Array.from(page.querySelectorAll('tbody tr')).find(tr => tr.textContent!.includes('SCAMPI'))!;
+      expect(scampi.lastElementChild!.textContent).withContext('100 en stock, 35 facturés ignorés').toBe('100');
+    });
+
+    it('avertit sans rien télécharger quand aucun article n\'est en stock', async () => {
+      const capture = interceptTelechargement();
+      await importerInventaire(INVENTAIRE_STANDARD.map(p => ({ ...p, dispo: 0 })));
+
+      await component.genererCatalogue();
+
+      expect(capture.blob).toBeNull();
+      expect(messages.find(m => m.severity === 'warn')!.summary).toBe('Catalogue vide');
+    });
+
+    it('signale un inventaire sans colonne de prix', async () => {
+      interceptTelechargement();
+      await component.importerInventaire(await fichier(
+        await construireInventaire(INVENTAIRE_STANDARD, { colonnesAbsentes: ['Prix de vente'] }),
+        'inventaire.xlsx'));
+
+      await component.genererCatalogue();
+
+      expect(messages.find(m => m.severity === 'error')!.detail).toContain('Prix de vente');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
   describe('réinitialisation', () => {
 
     it('vide les factures, les tournées et l\'inventaire', async () => {

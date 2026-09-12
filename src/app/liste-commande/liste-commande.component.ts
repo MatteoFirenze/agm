@@ -11,6 +11,7 @@ import { GeneratePdfService } from '../generate-pdf.service';
 import { SortExcelService } from '../sort-excel.service';
 import { FormatFichier } from '../formats-fichier';
 import { UpdateInventaireService } from '../update-inventaire.service';
+import { GenerateCatalogueService } from '../generate-catalogue.service';
 import { ConfirmationService } from 'primeng/api';
   
 @Component({
@@ -38,6 +39,7 @@ JSON: any;
     private generatePdf : GeneratePdfService,
     private sortExcel : SortExcelService,
     private updateInventaire : UpdateInventaireService,
+    private generateCatalogue : GenerateCatalogueService,
     private confirmation: ConfirmationService,
     ) {}
 
@@ -192,6 +194,23 @@ JSON: any;
       }
     } catch (erreur : any) {
       this.message.add({ severity: 'error', summary: 'Erreur', detail: erreur?.message || "Impossible de générer le fichier d'inventaire." });
+    }
+  }
+
+  //Le catalogue ne dépend que de l'inventaire importé, pas des factures
+  async genererCatalogue(){
+    if(this.inventaire === null)
+      return;
+
+    try {
+      const nbArticles = await this.generateCatalogue.genererCatalogue(this.inventaire);
+      if(nbArticles === 0){
+        this.message.add({ severity: 'warn', summary: 'Catalogue vide', detail: "Aucun article en stock dans le fichier d'inventaire." });
+        return;
+      }
+      this.message.add({ severity: 'success', summary: 'Catalogue généré', detail: nbArticles + ' article(s) en stock.' });
+    } catch (erreur : any) {
+      this.message.add({ severity: 'error', summary: 'Erreur', detail: erreur?.message || 'Impossible de générer le catalogue.' });
     }
   }
 

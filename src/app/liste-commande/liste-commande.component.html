@@ -21,6 +21,9 @@
     <button class="btn-action" [disabled]="!inventaireMajPossible" (click)="mettreAJourInventaire()">
       Mettre à jour l'inventaire
     </button>
+    <button class="btn-action" [disabled]="!inventaire" (click)="genererCatalogue()">
+      Générer le catalogue
+    </button>
     <button class="btn-reset" (click)="reset()">
       Réinitialiser
     </button>
