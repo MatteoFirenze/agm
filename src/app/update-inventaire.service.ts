@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import * as ExcelJS from 'exceljs' ;
 import { Commande } from './commande';
 import { estAlcool } from './familles';
+import { texteCellule, valeurCellule } from './cellule';
 
 /*Total facturé pour une référence interne, toutes factures confondues*/
 export interface TotalReference {
@@ -26,6 +27,9 @@ export class UpdateInventaireService {
   //colonnes de quantité à recalculer
   private static readonly COLONNES_QTE = ['Quantité disponible', 'Quantité prévue'];
   private static readonly COLONNE_REF = 'Référence interne';
+  //colonnes placées en tête du fichier généré, dans cet ordre : ce sont celles
+  //que l'on consulte en premier. Le reste suit dans l'ordre du fichier importé.
+  private static readonly COLONNES_EN_TETE = ['Nom', 'Prix de vente', 'Quantité disponible'];
 
   /*Additionne les quantités facturées par référence interne.
   On travaille sur les factures encore chargées : celles supprimées via la
@@ -42,10 +46,10 @@ export class UpdateInventaireService {
         if (cle === null) return; //ligne sans référence interne
 
         if (!totaux.has(cle)) {
-          totaux.set(cle, { ref: this.texte(ligne.ref), nom: this.texte(ligne.nom), qte: 0 });
+          totaux.set(cle, { ref: texteCellule(ligne.ref), nom: texteCellule(ligne.nom), qte: 0 });
         }
         let total = totaux.get(cle)!;
-        total.qte = this.arrondir(total.qte + (Number(this.valeur(ligne.qte)) || 0));
+        total.qte = this.arrondir(total.qte + (Number(valeurCellule(ligne.qte)) || 0));
       });
     });
 
@@ -66,7 +70,7 @@ export class UpdateInventaireService {
     let colsQte : number[] = [];
 
     enTete.eachCell((cell, col) => {
-      let titre = this.texte(cell.value).trim();
+      let titre = texteCellule(cell.value).trim();
       if (UpdateInventaireService.COLONNES_RETIREES.indexOf(titre) !== -1) return;
 
       colonnesGardees.push(col);
@@ -81,6 +85,14 @@ export class UpdateInventaireService {
     if (colsQte.length === 0) {
       throw new Error("Aucune colonne de quantité (« " + UpdateInventaireService.COLONNES_QTE.join(' », « ') + " ») dans le fichier d'inventaire.");
     }
+
+    //nom, prix et quantité disponible passent devant ; colRef et colsQte restent
+    //des numéros de colonne de la source, l'ordre de sortie ne les concerne pas
+    let ordre = colonnesGardees
+      .map((col, position) => ({ col, titre: titres[position], rang: this.rangEnTete(titres[position]), position }))
+      .sort((a, b) => a.rang - b.rang || a.position - b.position);
+    colonnesGardees = ordre.map(c => c.col);
+    titres = ordre.map(c => c.titre);
 
     let sortie = new ExcelJS.Workbook();
     let feuille = sortie.addWorksheet(source.name || 'Inventaire');
@@ -107,7 +119,7 @@ export class UpdateInventaireService {
       }
 
       let valeurs = colonnesGardees.map(col => {
-        let valeur = this.valeur(row.getCell(col).value);
+        let valeur = valeurCellule(row.getCell(col).value);
         if (!total || colsQte.indexOf(col) === -1) return valeur;
         //quantité facturée retranchée du stock ; négatif volontairement conservé
         return this.arrondir((Number(valeur) || 0) - total.qte);
@@ -149,30 +161,18 @@ export class UpdateInventaireService {
     URL.revokeObjectURL(url);
   }
 
+  /*Rang de tri d'une colonne : sa place dans COLONNES_EN_TETE, sinon après
+  toutes celles-là — à rang égal l'ordre du fichier importé est conservé*/
+  private rangEnTete(titre : string) : number {
+    let rang = UpdateInventaireService.COLONNES_EN_TETE.indexOf(titre);
+    return rang === -1 ? UpdateInventaireService.COLONNES_EN_TETE.length : rang;
+  }
+
   /*Clé de rapprochement : on ignore la casse et les espaces parasites,
   les références étant saisies à la main dans Odoo*/
   private normaliser(valeur : ExcelJS.CellValue) : string | null {
-    let texte = this.texte(valeur).trim();
+    let texte = texteCellule(valeur).trim();
     return texte === '' ? null : texte.toUpperCase();
-  }
-
-  /*Une cellule Excel peut porter une formule, un lien ou du texte enrichi :
-  on en extrait la valeur affichée*/
-  private valeur(cellule : ExcelJS.CellValue) : any {
-    if (cellule === null || cellule === undefined) return null;
-    if (typeof cellule === 'object') {
-      let objet = cellule as any;
-      if (objet.result !== undefined) return objet.result;
-      if (objet.text !== undefined) return objet.text;
-      if (objet.richText !== undefined) return objet.richText.map((m : any) => m.text).join('');
-      if (objet.hyperlink !== undefined) return objet.hyperlink;
-    }
-    return cellule;
-  }
-
-  private texte(cellule : ExcelJS.CellValue) : string {
-    let valeur = this.valeur(cellule);
-    return valeur === null || valeur === undefined ? '' : String(valeur);
   }
 
   /*Les quantités sont décimales : sans arrondi on obtient des 141.00000000000003*/

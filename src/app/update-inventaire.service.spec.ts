@@ -5,7 +5,7 @@ import { UpdateInventaireService, TotalReference } from './update-inventaire.ser
 import { SortExcelService } from './sort-excel.service';
 import { Commande } from './commande';
 import {
-  construireEcritureComptable, construireInventaire, relireBuffer, lignesDe,
+  construireEcritureComptable, construireInventaire, relireBuffer, lignesDe, lignesParTitre,
   FAMILLE, FACTURES_STANDARD, INVENTAIRE_STANDARD,
   FactureFixture, ProduitInventaire,
 } from './testing/excel-fixtures';
@@ -52,9 +52,13 @@ describe('UpdateInventaireService', () => {
     return relireBuffer(buffer);
   }
 
-  /*Retrouve une ligne du fichier produit par sa référence interne (colonne 2)*/
-  function ligneParRef(feuille : ExcelJS.Worksheet, ref : string | null) : any[] {
-    return lignesDe(feuille).slice(1).find(l => (l[1] === null ? null : String(l[1])) === ref)!;
+  //intitulés utilisés dans les assertions : les tests ne dépendent ainsi pas
+  //de l'ordre des colonnes du fichier produit
+  const NOM = 'Nom', REF = 'Référence interne', DISPO = 'Quantité disponible', PREVU = 'Quantité prévue';
+
+  /*Retrouve une ligne du fichier produit par sa référence interne*/
+  function ligneParRef(feuille : ExcelJS.Worksheet, ref : string | null) : { [titre : string] : any } {
+    return lignesParTitre(feuille).find(l => (l[REF] === null ? null : String(l[REF])) === ref)!;
   }
 
   it('se crée', () => {
@@ -149,9 +153,9 @@ describe('UpdateInventaireService', () => {
       await service.genererInventaireMisAJour(inventaire, totaux, 'x.xlsx');
       const feuille = await feuilleProduite(capture);
 
-      expect(lignesDe(feuille)[0]).toEqual([
-        'Nom', 'Référence interne', 'Étiquettes', 'Prix de vente',
-        'Taxes de vente', 'Catégorie de produits', 'Quantité disponible', 'Quantité prévue',
+      expect(lignesDe(feuille)[0]).withContext('nom, prix et quantité disponible en tête').toEqual([
+        'Nom', 'Prix de vente', 'Quantité disponible',
+        'Référence interne', 'Étiquettes', 'Taxes de vente', 'Catégorie de produits', 'Quantité prévue',
       ]);
     });
 
@@ -167,12 +171,12 @@ describe('UpdateInventaireService', () => {
       const feuille = await feuilleProduite(capture);
 
       const scam = ligneParRef(feuille, 'SCAM');
-      expect(scam[6]).withContext('disponible 100 - 35').toBe(65);
-      expect(scam[7]).withContext('prévue 110 - 35').toBe(75);
+      expect(scam[DISPO]).withContext('disponible 100 - 35').toBe(65);
+      expect(scam[PREVU]).withContext('prévue 110 - 35').toBe(75);
 
       const orec = ligneParRef(feuille, 'OREC');
-      expect(orec[6]).toBe(44);
-      expect(orec[7]).toBe(44);
+      expect(orec[DISPO]).toBe(44);
+      expect(orec[PREVU]).toBe(44);
     });
 
     it('ne touche pas aux produits absents des factures', async () => {
@@ -180,7 +184,7 @@ describe('UpdateInventaireService', () => {
       const feuille = await feuilleProduite(capture);
 
       const zzzz = ligneParRef(feuille, 'ZZZZ');
-      expect([zzzz[6], zzzz[7]]).toEqual([7, 8]);
+      expect([zzzz[DISPO], zzzz[PREVU]]).toEqual([7, 8]);
     });
 
     it('ne touche pas aux produits sans référence interne', async () => {
@@ -188,7 +192,7 @@ describe('UpdateInventaireService', () => {
       const feuille = await feuilleProduite(capture);
 
       const sansRef = ligneParRef(feuille, null);
-      expect([sansRef[6], sansRef[7]]).toEqual([3, 3]);
+      expect([sansRef[DISPO], sansRef[PREVU]]).toEqual([3, 3]);
     });
 
     it('ne touche pas à un alcool même s\'il figure dans l\'inventaire', async () => {
@@ -196,7 +200,7 @@ describe('UpdateInventaireService', () => {
       const feuille = await feuilleProduite(capture);
 
       const amarone = ligneParRef(feuille, 'AMASC');
-      expect([amarone[6], amarone[7]])
+      expect([amarone[DISPO], amarone[PREVU]])
         .withContext('l\'avoir sur un vin ne doit pas remonter le stock').toEqual([12, 12]);
     });
 
@@ -205,7 +209,9 @@ describe('UpdateInventaireService', () => {
       const feuille = await feuilleProduite(capture);
 
       const scam = ligneParRef(feuille, 'SCAM');
-      expect(scam.slice(0, 6)).toEqual(['SCAMPI TEST 1KG', 'SCAM', 'Poissons', 30, '6%', FAMILLE.POISSON]);
+      expect([scam[NOM], scam[REF], scam['Étiquettes'], scam['Prix de vente'],
+              scam['Taxes de vente'], scam['Catégorie de produits']])
+        .toEqual(['SCAMPI TEST 1KG', 'SCAM', 'Poissons', 30, '6%', FAMILLE.POISSON]);
     });
 
     it('compte les lignes réellement mises à jour', async () => {
@@ -237,8 +243,8 @@ describe('UpdateInventaireService', () => {
       await service.genererInventaireMisAJour(inventaire, totaux, 'x.xlsx');
       const second = ligneParRef(await feuilleProduite(capture), 'SCAM');
 
-      expect(second[6]).toBe(premier[6]);
-      expect(second[6]).toBe(65);
+      expect(second[DISPO]).toBe(premier[DISPO]);
+      expect(second[DISPO]).toBe(65);
     });
 
     it('nomme le fichier téléchargé', async () => {
@@ -268,7 +274,7 @@ describe('UpdateInventaireService', () => {
       );
 
       const p = ligneParRef(feuille, 'P1');
-      expect([p[6], p[7]]).withContext('10-(-4) et 12-(-4)').toEqual([14, 16]);
+      expect([p[DISPO], p[PREVU]]).withContext('10-(-4) et 12-(-4)').toEqual([14, 16]);
     });
 
     it('laisse le résultat passer sous zéro sans le ramener à 0', async () => {
@@ -279,7 +285,7 @@ describe('UpdateInventaireService', () => {
       );
 
       const p = ligneParRef(feuille, 'P1');
-      expect([p[6], p[7]]).toEqual([-4, -8]);
+      expect([p[DISPO], p[PREVU]]).toEqual([-4, -8]);
     });
 
     it('calcule juste sur des décimales', async () => {
@@ -290,8 +296,8 @@ describe('UpdateInventaireService', () => {
       );
 
       const p = ligneParRef(feuille, 'P1');
-      expect(p[6]).withContext('pas de 135.50999999999999').toBe(135.51);
-      expect(p[7]).toBe(139.83);
+      expect(p[DISPO]).withContext('pas de 135.50999999999999').toBe(135.51);
+      expect(p[PREVU]).toBe(139.83);
     });
 
     it('traite une quantité de stock vide comme 0', async () => {
@@ -302,7 +308,7 @@ describe('UpdateInventaireService', () => {
       );
 
       const p = ligneParRef(feuille, 'P1');
-      expect([p[6], p[7]]).toEqual([-3, -3]);
+      expect([p[DISPO], p[PREVU]]).toEqual([-3, -3]);
     });
   });
 

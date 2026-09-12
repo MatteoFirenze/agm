@@ -9,6 +9,7 @@ import { MessageService } from 'primeng/api';
 import { ReadExcelService } from '../read-excel.service';
 import { GeneratePdfService } from '../generate-pdf.service';
 import { SortExcelService } from '../sort-excel.service';
+import { FormatFichier } from '../formats-fichier';
 import { UpdateInventaireService } from '../update-inventaire.service';
 import { ConfirmationService } from 'primeng/api';
   
@@ -26,6 +27,10 @@ export class ListeCommandeComponent {
   map : Map<string,Commande> = new Map();
   clients_nom_map : Map<string,string> = new Map();
   sheet!: ExcelJS.Worksheet;
+  //Format reconnu au dernier import, affiché pour que l'utilisateur vérifie que
+  //c'est bien celui qu'il croit avoir choisi
+  format : FormatFichier | null = null;
+  nomFactures : string = '';
 JSON: any;
   constructor(
     private readExcel : ReadExcelService,
@@ -119,9 +124,17 @@ JSON: any;
     await workbook.xlsx.load(buffer as Buffer);
 
     this.sheet =  workbook.getWorksheet(1);
+    //le service reconnaît le format tout seul d'après les intitulés de colonnes,
+    //et renvoie null s'il n'en reconnaît aucun (il a alors déjà averti et remis
+    //l'écran à zéro)
+    let format = this.sortExcel.sortExcel(this.sheet,this.map,this.message, this.clients_nom_map);
+    if(format === null)
+      return;
+
+    this.format = format;
+    this.nomFactures = fileRes.name;
     this.enableButton();
-    this.sortExcel.sortExcel(this.sheet,this.map,this.message, this.clients_nom_map);
-    
+
     for(let client of this.map.keys()){
       this.clients.push(client);
     }
@@ -155,7 +168,11 @@ JSON: any;
 
     const totaux = this.updateInventaire.totauxParReference(this.map);
     if(totaux.size === 0){
-      this.message.add({ severity: 'error', summary: 'Erreur', detail: "Aucune référence interne dans le fichier de factures. Vérifiez que la colonne « Lignes de facture/Produit/Référence interne » est bien présente à l'export." });
+      //selon le format, la référence vient d'une colonne ou des crochets du nom
+      const colonneRef = this.format?.colonnes.refArticle;
+      this.message.add({ severity: 'error', summary: 'Erreur', detail: colonneRef
+        ? "Aucune référence interne dans le fichier de factures. Vérifiez que la colonne « " + colonneRef + " » est bien présente à l'export."
+        : "Aucune référence interne dans le fichier importé : dans une tournée devis, elle doit précéder le nom du produit entre crochets, par exemple « [PANZ] PANZEROTTINI POM/MOZ 1KG »." });
       return;
     }
 
@@ -386,6 +403,8 @@ JSON: any;
     this.clients = [];
     this.tournee1 = [];
     this.tournee2 = [];
+    this.format = null;
+    this.nomFactures = '';
 
     this.map.clear();
     this.clients_nom_map.clear();

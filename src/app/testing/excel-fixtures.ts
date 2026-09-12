@@ -36,6 +36,19 @@ export const COLONNES_FACTURE = {
   ref:        'Lignes de facture/Produit/Référence interne',
 };
 
+/*Intitulés exacts des colonnes de l'export « Tournée devis ».
+Mêmes clés que COLONNES_FACTURE — hors « ref », qui n'a pas de colonne dans cet
+export — pour qu'un même jeu de données s'écrive dans les deux formats.*/
+export const COLONNES_TOURNEE = {
+  codeClient: 'Client/ID',
+  nomClient:  'Client',
+  codeProduit:'Lignes de commande/Produit/ID',
+  nomProduit: 'Lignes de commande/Produit',
+  famille:    'Lignes de commande/Catégorie de produits',
+  qte:        'Lignes de commande/Quantité',
+  numero:     'Référence commande',
+};
+
 /*Intitulés exacts des colonnes de l'export d'inventaire*/
 export const COLONNES_INVENTAIRE = ['Favori', 'Nom', 'Référence interne', 'Étiquettes',
   'Prix de vente', 'Taxes de vente', 'Catégorie de produits',
@@ -126,6 +139,58 @@ export async function construireEcritureComptable(
   return allerRetour(workbook);
 }
 
+/*Construit un classeur au format « Tournée devis ».
+
+Le même jeu de données que l'écriture comptable, écrit avec l'autre nomenclature :
+la référence interne n'a pas de colonne, elle est collée devant le nom du produit
+entre crochets, et la référence commande n'est renseignée que sur la première
+ligne de chaque commande — c'est ce que fait l'export réel, d'où le défaut
+inverse de celui de construireEcritureComptable.*/
+export async function construireTourneeDevis(
+  commandes : FactureFixture[],
+  options : OptionsFacture = {}
+) : Promise<ExcelJS.Workbook> {
+
+  const absentes = options.colonnesAbsentes || [];
+  const numeroPartout = options.numeroSurChaqueLigne === true;
+  const clientPremiereSeulement = options.clientSurPremiereLigneSeulement !== false;
+
+  const ordre : { cle : keyof typeof COLONNES_TOURNEE, titre : string }[] =
+    (Object.keys(COLONNES_TOURNEE) as (keyof typeof COLONNES_TOURNEE)[])
+      .map(cle => ({ cle, titre: COLONNES_TOURNEE[cle] }))
+      .filter(c => absentes.indexOf(c.titre) === -1);
+
+  const workbook = new ExcelJS.Workbook();
+  const feuille = workbook.addWorksheet('Sheet1');
+  feuille.addRow(ordre.map(c => c.titre));
+
+  commandes.forEach(commande => {
+    commande.lignes.forEach((ligne, index) => {
+      const premiere = index === 0;
+      const valeurs : any = {
+        codeClient:  (!clientPremiereSeulement || premiere) ? nul(commande.codeClient) : null,
+        nomClient:   (!clientPremiereSeulement || premiere) ? nul(commande.nomClient) : null,
+        codeProduit: nul(ligne.codeProduit),
+        nomProduit:  produitAvecRef(ligne),
+        famille:     nul(ligne.famille),
+        qte:         nul(ligne.qte),
+        numero:      (numeroPartout || premiere) ? commande.numero : null,
+      };
+      feuille.addRow(ordre.map(c => valeurs[c.cle]));
+    });
+  });
+
+  return allerRetour(workbook);
+}
+
+/*« [OREC] ORECCHIETTE TEST 1KG », comme Odoo l'écrit dans une tournée devis.
+Une ligne sans référence garde son nom seul, sans crochets.*/
+function produitAvecRef(ligne : LigneFixture) : any {
+  if (ligne.nomProduit === null || ligne.nomProduit === undefined) return null;
+  if (ligne.ref === null || ligne.ref === undefined) return ligne.nomProduit;
+  return '[' + ligne.ref + '] ' + ligne.nomProduit;
+}
+
 /*Construit un classeur au format inventaire*/
 export async function construireInventaire(
   produits : ProduitInventaire[],
@@ -175,6 +240,18 @@ export function lignesDe(feuille : ExcelJS.Worksheet) : any[][] {
   return lignes;
 }
 
+/*Les lignes d'une feuille indexées par intitulé de colonne : un test vérifie
+ainsi une valeur sans figer la position de sa colonne*/
+export function lignesParTitre(feuille : ExcelJS.Worksheet) : { [titre : string] : any }[] {
+  const lignes = lignesDe(feuille);
+  const titres = (lignes[0] || []).map(t => String(t));
+  return lignes.slice(1).map(ligne => {
+    const objet : { [titre : string] : any } = {};
+    titres.forEach((titre, i) => { objet[titre] = ligne[i]; });
+    return objet;
+  });
+}
+
 function nul(valeur : any) : any {
   return valeur === undefined ? null : valeur;
 }
@@ -206,6 +283,39 @@ export const FACTURES_STANDARD : FactureFixture[] = [
       { codeProduit: '770', nomProduit: 'SCAMPI TEST 1KG', famille: FAMILLE.POISSON, qte: 20, ref: 'SCAM' },
       { codeProduit: '770', nomProduit: 'SCAMPI TEST 1KG', famille: FAMILLE.POISSON, qte: 5, ref: 'SCAM' },
       { codeProduit: '431', nomProduit: 'AMARONE TEST 0.75', famille: FAMILLE.VIN, qte: -1, ref: 'AMASC' },
+    ],
+  },
+];
+
+// ─── Jeu de données « Tournée devis » ───────────────────────────────────────
+// Reproduit ce que l'export réel a de particulier : le même client sur toutes
+// les commandes — seule la référence commande les distingue —, des commandes de
+// plusieurs lignes, un produit commandé deux fois sur deux commandes, et un
+// produit sans catégorie de produits.
+// Les références non alcoolisées (SCAM, OREC) sont celles d'INVENTAIRE_STANDARD,
+// pour pouvoir dérouler la mise à jour de l'inventaire de bout en bout.
+
+export const COMMANDES_STANDARD : FactureFixture[] = [
+  {
+    numero: 'S00891', codeClient: '4028', nomClient: 'PRIVE BON',
+    lignes: [
+      { codeProduit: '938', nomProduit: 'GRILLO TEST 0.75', famille: FAMILLE.VIN, qte: 12, ref: 'GRIP' },
+      { codeProduit: '937', nomProduit: 'NERO TEST 0.75', famille: FAMILLE.VIN, qte: 12, ref: 'NER' },
+    ],
+  },
+  {
+    numero: 'S00892', codeClient: '4028', nomClient: 'PRIVE BON',
+    lignes: [
+      { codeProduit: '938', nomProduit: 'GRILLO TEST 0.75', famille: FAMILLE.VIN, qte: 18, ref: 'GRIP' },
+      { codeProduit: '770', nomProduit: 'SCAMPI TEST 1KG', famille: FAMILLE.POISSON, qte: 3, ref: 'SCAM' },
+    ],
+  },
+  {
+    numero: 'S00893', codeClient: '4028', nomClient: 'PRIVE BON',
+    lignes: [
+      { codeProduit: '683', nomProduit: 'ORECCHIETTE TEST 1KG', famille: FAMILLE.PATES_FRAICHES, qte: 8, ref: 'OREC' },
+      //sans catégorie : la ligne reste dans la commande mais n'ira dans aucune chambre
+      { codeProduit: '680', nomProduit: 'OLIO TEST 5LT', famille: null, qte: 1, ref: 'OLI5' },
     ],
   },
 ];
