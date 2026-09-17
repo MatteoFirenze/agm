@@ -1,5 +1,54 @@
 @import "primeng/resources/themes/lara-light-blue/theme.css";
 @import "primeng/resources/primeng.css";
+@import "@fontsource/barlow/latin-400.css";
+@import "@fontsource/barlow/latin-500.css";
+@import "@fontsource/barlow/latin-600.css";
+@import "@fontsource/barlow-condensed/latin-600.css";
+@import "@fontsource/barlow-condensed/latin-700.css";
+
+/* ─── Planning à fiches en T : jetons ─────────────────────────
+   Tôle thermolaquée grise, fiches cartonnées dont la tête prend la
+   couleur de la tournée, bronze Firenze réservé à l'action suivante. */
+:root {
+  --encre: #25221D;
+  --encre-2: #57524A;
+  --encre-3: #6E695F;
+
+  --papier: #F3F2EE;
+  --plaque: #FAF9F6;
+  --carton: #FDFCF8;
+
+  --tole: #CBC9C2;
+  --tole-claire: #DAD8D2;
+  --tole-rail: #B8B6AE;
+  --tole-bord: #A3A098;
+
+  --t1: #DDC690;
+  --t2: #AFC7BA;
+  --t3: #DDB0A2;
+
+  --bronze: #76603D;
+  --bronze-fonce: #5F4C2F;
+  --bronze-voile: #E8DFCD;
+
+  --brique: #9A3B2E;
+  --brique-voile: #F2DFD9;
+  --vert: #335C42;
+  --vert-voile: #DCE8DF;
+  --sable-voile: #F2E8CF;
+  --sable-encre: #6E5314;
+
+  --rayon: 8px;
+  --rayon-petit: 5px;
+
+  --ombre-fiche: 0 1px 0 rgba(37, 34, 29, 0.08), 0 1px 3px rgba(37, 34, 29, 0.14);
+  --ombre-levee: 0 14px 28px rgba(37, 34, 29, 0.24), 0 3px 8px rgba(37, 34, 29, 0.16);
+
+  --police: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --police-etroite: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+
+  --sortie: cubic-bezier(0.16, 1, 0.3, 1);
+}
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -7,8 +56,226 @@
   padding: 0;
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  background: #F2EDE8;
-  color: #1E1514;
+  font-family: var(--police);
+  font-size: 15px;
+  line-height: 1.4;
+  background: var(--papier);
+  color: var(--encre);
+  -webkit-font-smoothing: antialiased;
+  scrollbar-color: var(--tole-bord) transparent;
+}
+
+::selection {
+  background: var(--bronze-voile);
+  color: var(--encre);
+}
+
+:focus-visible {
+  outline: 2px solid var(--bronze);
+  outline-offset: 2px;
+}
+
+button, input {
+  font: inherit;
+  color: inherit;
+}
+
+/* La vue routée occupe toute la hauteur restante entre en-tête et pied */
+app-liste-commande {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ─── PrimeNG : repris dans le vocabulaire de la tôle ──────── */
+.p-component,
+.p-component *:not(.pi) {
+  font-family: var(--police);
+}
+
+/* Avis persistants, sous le rail des étapes */
+.p-message {
+  margin: 0 0 0.5rem;
+  border-radius: var(--rayon);
+}
+.p-message .p-message-wrapper {
+  display: grid;
+  grid-template-columns: 1.125rem max-content minmax(0, 1fr) 2rem;
+  align-items: center;
+  column-gap: 0.625rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.875rem;
+}
+.p-message .p-message-icon {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 0;
+}
+.p-message .p-message-icon svg,
+.p-message .p-message-icon:not(.pi) {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+.p-message .p-message-summary {
+  grid-column: 2;
+  grid-row: 1;
+  white-space: nowrap;
+}
+.p-message .p-message-detail {
+  grid-column: 3;
+  grid-row: 1;
+  max-width: 75ch;
+  line-height: 1.4;
+}
+.p-message .p-message-close {
+  grid-column: 4;
+  grid-row: 1;
+}
+.p-message .p-message-close svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+@media (max-width: 640px) {
+  .p-message .p-message-wrapper {
+    grid-template-columns: 1.125rem minmax(0, 1fr) 2rem;
+    row-gap: 0.125rem;
+  }
+  .p-message .p-message-summary {
+    white-space: normal;
+  }
+  .p-message .p-message-detail {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .p-message .p-message-close {
+    grid-column: 3;
+  }
+}
+.p-message.p-message-info,
+.p-message.p-message-success,
+.p-message.p-message-warn,
+.p-message.p-message-error {
+  border-width: 0;
+  border-style: none;
+}
+.p-message.p-message-info { background: var(--plaque); color: var(--encre); box-shadow: inset 0 0 0 1px var(--tole-claire); }
+.p-message.p-message-success { background: var(--vert-voile); color: #22382A; }
+.p-message.p-message-warn { background: var(--sable-voile); color: #4A3810; }
+.p-message.p-message-error { background: var(--brique-voile); color: #5A2219; }
+.p-message.p-message-info .p-message-icon { color: var(--encre-2); }
+.p-message.p-message-success .p-message-icon { color: var(--vert); }
+.p-message.p-message-warn .p-message-icon { color: var(--sable-encre); }
+.p-message.p-message-error .p-message-icon { color: var(--brique); }
+.p-message .p-message-summary {
+  font-weight: 600;
+}
+.p-message .p-message-detail {
+  margin-left: 0;
+}
+.p-message .p-message-close {
+  width: 2rem;
+  height: 2rem;
+  color: inherit;
+  border-radius: var(--rayon-petit);
+}
+.p-message .p-message-close:hover {
+  background: rgba(37, 34, 29, 0.08);
+}
+.p-message .p-message-close:focus-visible {
+  box-shadow: none;
+  outline: 2px solid currentColor;
+  outline-offset: 0;
+}
+
+/* Fenêtres : dos de fiche et confirmations */
+.p-dialog-mask.p-component-overlay {
+  background: rgba(37, 34, 29, 0.45);
+}
+.p-dialog {
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre-levee);
+  overflow: hidden;
+}
+.p-dialog .p-dialog-header {
+  background: var(--carton);
+  color: var(--encre);
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--tole-claire);
+}
+.p-dialog .p-dialog-header .p-dialog-title {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+.p-dialog .p-dialog-header .p-dialog-header-icon {
+  color: var(--encre-2);
+  border-radius: var(--rayon-petit);
+}
+.p-dialog .p-dialog-header .p-dialog-header-icon:enabled:hover {
+  background: var(--papier);
+  color: var(--encre);
+}
+.p-dialog .p-dialog-header .p-dialog-header-icon:focus {
+  box-shadow: 0 0 0 2px var(--bronze);
+}
+.p-dialog .p-dialog-content {
+  background: var(--carton);
+  color: var(--encre);
+  padding: 1rem 1.25rem 1.25rem;
+}
+.p-dialog .p-dialog-footer {
+  background: var(--carton);
+  padding: 0 1.25rem 1.25rem;
+  border-top: 0;
+}
+.p-confirm-dialog .p-confirm-dialog-icon {
+  display: none;
+}
+.p-confirm-dialog .p-confirm-dialog-message {
+  margin-left: 0;
+  line-height: 1.5;
+}
+
+.p-dialog .p-dialog-footer .p-button {
+  margin: 0 0 0 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--rayon-petit);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  transition: background-color 150ms var(--sortie), color 150ms var(--sortie);
+}
+.p-dialog .p-dialog-footer .p-button .p-button-icon {
+  display: none;
+}
+.p-dialog .p-dialog-footer .p-button:focus {
+  box-shadow: 0 0 0 2px var(--carton), 0 0 0 4px var(--bronze);
+}
+.p-dialog .p-dialog-footer .p-button.custom-accept-button {
+  background: var(--brique);
+  border: 1px solid var(--brique);
+  color: #FFFFFF;
+}
+.p-dialog .p-dialog-footer .p-button.custom-accept-button:hover {
+  background: #7F2F24;
+  border-color: #7F2F24;
+}
+.p-dialog .p-dialog-footer .p-button.custom-reject-button {
+  background: transparent;
+  border: 1px solid var(--tole-bord);
+  color: var(--encre);
+}
+.p-dialog .p-dialog-footer .p-button.custom-reject-button:hover {
+  background: var(--papier);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+  }
 }
