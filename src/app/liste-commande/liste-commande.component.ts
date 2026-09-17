@@ -135,6 +135,7 @@ JSON: any;
 
     this.format = format;
     this.nomFactures = fileRes.name;
+    this.inventaireMisAJour = false;
     this.enableButton();
 
     for(let client of this.map.keys()){
@@ -158,6 +159,8 @@ JSON: any;
 
     this.inventaire = workbook;
     this.nomInventaire = fichier.name;
+    this.inventaireMisAJour = false;
+    this.catalogueGenere = false;
   }
 
   get inventaireMajPossible() : boolean {
@@ -185,6 +188,7 @@ JSON: any;
         this.updateInventaire.nomFichierSortie(this.nomInventaire)
       );
 
+      this.inventaireMisAJour = true;
       this.message.add({ severity: 'success', summary: 'Inventaire mis à jour', detail: resultat.lignesMisesAJour + ' produit(s) recalculé(s) sur ' + totaux.size + ' référence(s) facturée(s).' });
 
       if(resultat.referencesInconnues.length > 0){
@@ -208,6 +212,7 @@ JSON: any;
         this.message.add({ severity: 'warn', summary: 'Catalogue vide', detail: "Aucun article en stock dans le fichier d'inventaire." });
         return;
       }
+      this.catalogueGenere = true;
       this.message.add({ severity: 'success', summary: 'Catalogue généré', detail: nbArticles + ' article(s) en stock.' });
     } catch (erreur : any) {
       this.message.add({ severity: 'error', summary: 'Erreur', detail: erreur?.message || 'Impossible de générer le catalogue.' });
@@ -218,6 +223,106 @@ JSON: any;
     this.trier(num);
     this.generatePdf.generatePdf(this.vins,this.chambre1,this.chambre2,this.chambre3,this.chambre4,this.chambre5);
     this.softReset()
+
+    this.impressions.set(num, { heure: this.heureCourante(), empreinte: this.empreinte(num) });
+  }
+
+  // ─── Tampon « Imprimé » ─────────────────────────────────────
+  //Pour chaque tournée imprimée : l'heure et la liste des factures à ce
+  //moment-là, pour repérer une tournée modifiée depuis son impression
+  impressions : Map<number, { heure : string, empreinte : string }> = new Map();
+
+  listeDe(num : number) : string[] {
+    switch(num){
+      case 1: return this.clients;
+      case 2: return this.tournee1;
+      case 3: return this.tournee2;
+      default: return [];
+    }
+  }
+
+  private empreinte(num : number) : string {
+    return this.listeDe(num).join('|');
+  }
+
+  private heureCourante() : string {
+    return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  etatImpression(num : number) : 'imprime' | 'modifie' | null {
+    const impression = this.impressions.get(num);
+    if(!impression)
+      return null;
+    return impression.empreinte === this.empreinte(num) ? 'imprime' : 'modifie';
+  }
+
+  heureImpression(num : number) : string {
+    return this.impressions.get(num)?.heure ?? '';
+  }
+
+  get nbTourneesImprimees() : number {
+    return [1, 2, 3].filter(num => this.etatImpression(num) === 'imprime').length;
+  }
+
+  // ─── Étapes de la journée ───────────────────────────────────
+  inventaireMisAJour : boolean = false;
+  catalogueGenere : boolean = false;
+
+  get totalClients() : number {
+    return this.clients.length + this.tournee1.length + this.tournee2.length;
+  }
+
+  //L'unique action mise en avant : la prochaine chose à faire dans la routine
+  get prochaineEtape() : 'importer' | 'imprimer' | 'inventaire' | 'mettre-a-jour' | 'catalogue' | null {
+    if(this.format === null)
+      return 'importer';
+    const aImprimer = [1, 2, 3].some(num => this.listeDe(num).length > 0 && this.etatImpression(num) !== 'imprime');
+    if(aImprimer)
+      return 'imprimer';
+    if(this.inventaire === null)
+      return 'inventaire';
+    if(!this.inventaireMisAJour)
+      return 'mettre-a-jour';
+    if(!this.catalogueGenere)
+      return 'catalogue';
+    return null;
+  }
+
+  // ─── Trouver un client ──────────────────────────────────────
+  recherche : string = '';
+
+  private normaliser(texte : string) : string {
+    return texte.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+  }
+
+  //Correspondance sur le nom du client ou le numéro de facture/commande
+  correspond(client : string) : boolean {
+    const cherche = this.normaliser(this.recherche);
+    if(cherche === '')
+      return false;
+    const nom = this.clients_nom_map.get(client) ?? '';
+    return this.normaliser(nom + ' ' + client).includes(cherche);
+  }
+
+  get nbTrouves() : number {
+    if(this.normaliser(this.recherche) === '')
+      return 0;
+    return [1, 2, 3].reduce((total, num) => total + this.listeDe(num).filter(c => this.correspond(c)).length, 0);
+  }
+
+  chercher(valeur : string) {
+    this.recherche = valeur;
+    //la première fiche trouvée est amenée dans sa colonne
+    setTimeout(() => {
+      const fiche = document.querySelector('.fiche--trouvee') as HTMLElement | null;
+      fiche?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  }
+
+  effacerRecherche(champ : HTMLInputElement) {
+    this.recherche = '';
+    champ.value = '';
+    champ.focus();
   }
 
   vins : Set<ExcelJS.CellValue[]> = new Set(); //chambre en partant du vollet
@@ -341,13 +446,26 @@ JSON: any;
 
   showCommande :  any = [];
   stringAffichage : string = "";
+  //Mêmes lignes que stringAffichage, structurées pour la liste quantité / produit
+  detailLignes : { qte : any, nom : any }[] = [];
+  //Bouton qui a ouvert le détail : le focus y revient à la fermeture
+  declencheurDetail : HTMLElement | null = null;
+  detailTitre : string = "Détail facture";
   developperFacture(client :string){
     this.stringAffichage = "";
+    this.detailLignes = [];
+    this.detailTitre = (this.clients_nom_map.get(client) ?? 'Détail facture') + ' · ' + client;
     let commandeClient = this.map.get(client);
     commandeClient?.article.forEach((ligne)=>{
       this.stringAffichage += (ligne.qte +" "+ligne.nom+"<br>");
+      this.detailLignes.push({ qte: ligne.qte, nom: ligne.nom });
     });
     this.display();
+  }
+
+  rendreFocusDetail() {
+    this.declencheurDetail?.focus();
+    this.declencheurDetail = null;
   }
 
   visible: boolean = false;
@@ -357,9 +475,9 @@ JSON: any;
 
   deleteClient(client :string){
     this.confirmation.confirm({
-      message: 'Etes-vous certain de vouloir supprimer cette commande?',
-      header: 'Confirmation',
-      acceptLabel: 'Supprimer',
+      message: 'Retirer ' + (this.clients_nom_map.get(client) ?? 'cette commande') + ' (' + client + ') de la journée ? La commande ne sera ni imprimée ni déduite de l\'inventaire.',
+      header: 'Retirer la fiche ?',
+      acceptLabel: 'Retirer',
       rejectLabel: 'Annuler',
       acceptButtonStyleClass: 'custom-accept-button',
       rejectButtonStyleClass: 'custom-reject-button',
@@ -400,6 +518,20 @@ JSON: any;
     this.chambre5.clear();
   }
 
+  //Le bouton passe par une confirmation : toute la répartition du jour est perdue
+  demanderReset() {
+    this.confirmation.confirm({
+      message: "Toute la répartition du jour, les fichiers importés et les tampons d'impression seront effacés.",
+      header: 'Réinitialiser la planche ?',
+      acceptLabel: 'Réinitialiser',
+      rejectLabel: 'Annuler',
+      acceptButtonStyleClass: 'custom-accept-button',
+      rejectButtonStyleClass: 'custom-reject-button',
+      accept: () => this.reset(),
+      reject: () => {}
+    });
+  }
+
   //Bouton Réinitialiser : on repart de zéro, inventaire compris
   reset() {
     this.resetFactures();
@@ -410,6 +542,7 @@ JSON: any;
     }
     this.inventaire = null;
     this.nomInventaire = '';
+    this.catalogueGenere = false;
   }
 
   //Remise à zéro des seules factures, utilisée aussi avant chaque nouvel import
@@ -424,6 +557,9 @@ JSON: any;
     this.tournee2 = [];
     this.format = null;
     this.nomFactures = '';
+    this.impressions.clear();
+    this.recherche = '';
+    this.inventaireMisAJour = false;
 
     this.map.clear();
     this.clients_nom_map.clear();

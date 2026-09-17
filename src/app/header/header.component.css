@@ -1,21 +1,78 @@
-.header {
+:host {
+  display: block;
+  flex: none;
+}
+
+.plaque {
   display: flex;
-  justify-content: center;
   align-items: center;
-  height: 12vh;
-  background: #FFFFFF;
-  border-bottom: 3px solid #7B1E2E;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
-  padding: 0.5rem;
+  gap: 0.875rem;
+  height: 3.5rem;
+  padding: 0 1.5rem;
+  background: var(--plaque);
+  border-bottom: 1px solid var(--tole-claire);
 }
 
-.ctnImg {
-  width: 220px;
-  height: 100%;
+.marque {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
 }
 
-.img {
-  width: 100%;
-  height: 100%;
-  background: url(src/assets/enoteca-italia-logo-1610720767.jpg) center center / contain no-repeat;
+/* Le giglio seul, recadré dans le logo (encre x 67–124, y 19–84 sur
+   194 × 158) ; le fond blanc du PNG se fond dans la plaque */
+.giglio {
+  --echelle: 0.5;
+  display: block;
+  width: calc(66px * var(--echelle));
+  height: calc(72px * var(--echelle));
+  background: url('../../assets/catalogue-logo.png') no-repeat;
+  background-size: calc(194px * var(--echelle)) calc(158px * var(--echelle));
+  background-position: calc(-63px * var(--echelle)) calc(-16px * var(--echelle));
+  mix-blend-mode: multiply;
+}
+
+.maison {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--bronze);
+  white-space: nowrap;
+}
+
+.separateur {
+  width: 1px;
+  height: 1.25rem;
+  background: var(--tole-claire);
+  flex: none;
+}
+
+.ecran {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--encre);
+  white-space: nowrap;
+}
+
+.jour {
+  margin-left: auto;
+  font-size: 0.875rem;
+  color: var(--encre-2);
+  white-space: nowrap;
+}
+.jour::first-letter {
+  text-transform: uppercase;
+}
+
+@media (max-width: 640px) {
+  .plaque {
+    padding: 0 1rem;
+    gap: 0.625rem;
+  }
+  .maison,
+  .separateur {
+    display: none;
+  }
 }

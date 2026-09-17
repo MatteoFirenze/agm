@@ -6,6 +6,7 @@ import { AppComponent } from './app.component';
 import { HeaderComponent } from './header/header.component';
 import { FooterComponent } from './footer/footer.component';
 import { ListeCommandeComponent } from './liste-commande/liste-commande.component';
+import { IconeComponent } from './icone/icone.component';
 import { Routes, RouterModule } from '@angular/router';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import { MessagesModule } from 'primeng/messages';
@@ -23,7 +24,8 @@ const appRoutes: Routes = [
     AppComponent,
     HeaderComponent,
     FooterComponent,
-    ListeCommandeComponent
+    ListeCommandeComponent,
+    IconeComponent
   ],
   imports: [
     BrowserModule,
