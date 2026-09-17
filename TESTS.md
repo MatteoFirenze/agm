@@ -1,8 +1,8 @@
 # Tests automatisés
 
-150 tests couvrent la lecture des fichiers Excel, la reconnaissance des deux
-formats d'import, les regroupements, le contenu des PDF et la mise à jour de
-l'inventaire.
+176 tests couvrent la lecture des fichiers Excel, la reconnaissance des deux
+formats d'import, les regroupements, le contenu des PDF, la mise à jour de
+l'inventaire et le catalogue produits.
 
 ## Lancer les tests
 
@@ -38,9 +38,10 @@ Ces fichiers sont **générés**, pas versionnés : la source est
 
 | Fichier | Tests | Vérifie |
 |---|---:|---|
-| `liste-commande.component.spec.ts` | 44 | import des deux formats, réimport sans doublon, total produits, impression par tournée, suppression d'une facture, mise à jour de l'inventaire de bout en bout, fichier d'un format inconnu, réinitialisation |
+| `liste-commande.component.spec.ts` | 49 | import des deux formats, réimport sans doublon, total produits, impression par tournée, suppression d'une facture, mise à jour de l'inventaire de bout en bout, catalogue produits, fichier d'un format inconnu, réinitialisation |
 | `sort-excel.service.spec.ts` | 36 | reconnaissance du format par les intitulés, colonne obligatoire manquante, regroupement par pièce, propagation du client et du numéro de pièce, référence entre crochets, produit répété, avoirs, lignes sans produit, produits sans catégorie, **équivalence des deux formats** |
 | `update-inventaire.service.spec.ts` | 29 | totaux par référence, exclusion des alcools, casse et espaces, colonnes retirées et réordonnées, déduction sur les 2 colonnes de quantité, négatifs, décimales, références inconnues, **fichier source jamais modifié**, inventaire mal formé |
+| `generate-catalogue.service.spec.ts` | 21 | regroupement par étiquette (à défaut par catégorie), prix repris tels quels (TTC), articles épuisés écartés, tri par nom, ordre des groupes, répartition en 2 colonnes, échappement HTML, logo facultatif, rien de téléchargé si catalogue vide |
 | `generate-pdf.service.spec.ts` | 18 | présence ou absence de la section Vini, ordre des sections, découpage en colonnes (15 vins / 22 autres), sauts de page, format `qte⇥nom`, génération d'un vrai PDF |
 | `formats-fichier.spec.ts` | 13 | extraction de la référence entre crochets, colonnes retrouvées quelle que soit leur position, intitulés en double, colonnes d'un autre format |
 | `familles.spec.ts` | 5 | familles FA0001 / FA0004 exclues des agrégats |
@@ -165,3 +166,5 @@ colonne (`lignesParTitre()`), donc changer l'ordre ne les casse pas.
 - `SortExcelService.sortExcel()` renvoie le format reconnu, ou `null` s'il n'en
   reconnaît aucun — auquel cas il a déjà averti et appelé le callback de reset.
   Plusieurs tests s'appuient sur cette valeur de retour.
+- Le catalogue intègre `assets/catalogue-logo.png`, récupéré par `fetch` : les
+  tests remplacent `window.fetch` pour ne pas dépendre de cet asset.
