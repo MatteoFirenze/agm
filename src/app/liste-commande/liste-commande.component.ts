@@ -10,6 +10,7 @@ import { ReadExcelService } from '../read-excel.service';
 import { GeneratePdfService } from '../generate-pdf.service';
 import { SortExcelService } from '../sort-excel.service';
 import { FormatFichier } from '../formats-fichier';
+import { FichierImporte } from '../fichier-importe';
 import { UpdateInventaireService } from '../update-inventaire.service';
 import { GenerateCatalogueService } from '../generate-catalogue.service';
 import { ConfirmationService } from 'primeng/api';
@@ -28,10 +29,13 @@ export class ListeCommandeComponent {
   map : Map<string,Commande> = new Map();
   clients_nom_map : Map<string,string> = new Map();
   sheet!: ExcelJS.Worksheet;
-  //Format reconnu au dernier import, affiché pour que l'utilisateur vérifie que
-  //c'est bien celui qu'il croit avoir choisi
-  format : FormatFichier | null = null;
-  nomFactures : string = '';
+  //Les fichiers de la journée, dans l'ordre d'import : une facture et un devis
+  //se préparent ensemble sur la même planche. Le format reconnu est affiché
+  //pour chacun, pour que l'utilisateur vérifie que c'est bien celui qu'il croit.
+  fichiers : FichierImporte[] = [];
+  //Pièce -> fichier qui l'a apportée : sert à retirer un fichier, à repérer un
+  //réimport et à étiqueter les fiches quand les deux formats se côtoient
+  origines : Map<string,FichierImporte> = new Map();
 JSON: any;
   constructor(
     private readExcel : ReadExcelService,
@@ -43,12 +47,7 @@ JSON: any;
     private confirmation: ConfirmationService,
     ) {}
 
-    ngOnInit(): void {
-      // Pass the reset function to the service
-      this.sortExcel.setResetCallback(() => this.resetFactures());
-    }
-
-  drop(event: CdkDragDrop<any[]>) {
+    drop(event: CdkDragDrop<any[]>) {
     //si on reste dans le même tableau pour déplacer l'obj
     if (event.previousContainer === event.container) {
       switch(event.container.id){
@@ -112,35 +111,152 @@ JSON: any;
     }
 }
 
+  /*Les fichiers du jour s'empilent sur la même planche : on peut choisir la
+  facture et le devis d'un coup, ou ajouter le second plus tard sans perdre la
+  répartition déjà faite.*/
   async readAndSortExcel(event: any) {
-  
-    const fileRes = event.currentTarget.files[0];
-    if(!fileRes)
+
+    const choisis : File[] = Array.from(event.currentTarget.files ?? []);
+    if(choisis.length === 0)
       return;
-    // On repart d'un état propre : sinon un 2e import s'ajoute au précédent
-    // et duplique les factures déjà réparties dans les tournées.
-    // L'inventaire déjà importé, lui, est conservé.
-    this.resetFactures();
-    const buffer = await this.readExcel.readFile(fileRes);
+
+    for(const fichier of choisis)
+      await this.importerFactures(fichier);
+
+    //le champ est libéré pour que le même fichier puisse être rechoisi, ne
+    //serait-ce que pour le réimporter après correction de l'export
+    this.viderChamp('.import-factures');
+  }
+
+  private async importerFactures(fichier : File) {
+    const buffer = await this.readExcel.readFile(fichier);
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as Buffer);
 
-    this.sheet =  workbook.getWorksheet(1);
-    //le service reconnaît le format tout seul d'après les intitulés de colonnes,
-    //et renvoie null s'il n'en reconnaît aucun (il a alors déjà averti et remis
-    //l'écran à zéro)
-    let format = this.sortExcel.sortExcel(this.sheet,this.map,this.message, this.clients_nom_map);
+    this.sheet = workbook.getWorksheet(1);
+    //On trie à part : tant que le fichier n'est pas reconnu, la journée déjà
+    //posée sur la planche ne doit pas bouger d'un millimètre.
+    const pieces : Map<string,Commande> = new Map();
+    const noms : Map<string,string> = new Map();
+    //le service reconnaît le format tout seul d'après les intitulés de
+    //colonnes, et renvoie null s'il n'en reconnaît aucun (il a alors déjà averti)
+    const format = this.sortExcel.sortExcel(this.sheet, pieces, this.message, noms);
     if(format === null)
       return;
 
-    this.format = format;
-    this.nomFactures = fileRes.name;
+    this.fusionner(fichier.name, format, pieces, noms);
+  }
+
+  /*Ajoute les pièces d'un fichier à celles déjà présentes. Les fiches déjà
+  rangées gardent leur tournée : seules les pièces nouvelles arrivent en
+  tournée 1. Réimporter un fichier sous le même nom le met à jour plutôt que de
+  le doubler — ses pièces disparues de l'export quittent la planche, les autres
+  sont rafraîchies là où elles se trouvent.*/
+  private fusionner(nom : string, format : FormatFichier,
+                    pieces : Map<string,Commande>, noms : Map<string,string>) {
+
+    let fichier = this.fichiers.find(f => f.nom === nom);
+    if(fichier === undefined){
+      fichier = { nom: nom, format: format, pieces: [] };
+      this.fichiers.push(fichier);
+    } else {
+      fichier.format = format;
+      fichier.pieces.filter(piece => !pieces.has(piece))
+                    .forEach(piece => this.retirerPiece(piece));
+    }
+
+    let nouvelles = 0;
+    let conflits : string[] = [];
+
+    pieces.forEach((commande, piece) => {
+      let origine = this.origines.get(piece);
+      //Même numéro de pièce dans deux fichiers différents : on garde ce qui est
+      //déjà sur la planche plutôt que de l'écraser en silence.
+      if(origine !== undefined && origine !== fichier){
+        conflits.push(piece);
+        return;
+      }
+      if(origine === undefined){
+        this.clients.push(piece);
+        nouvelles++;
+      }
+      this.map.set(piece, commande);
+      this.clients_nom_map.set(piece, noms.get(piece) as any);
+      this.origines.set(piece, fichier!);
+    });
+
+    fichier.pieces = Array.from(pieces.keys()).filter(piece => this.origines.get(piece) === fichier);
+
+    //la répartition a changé : l'inventaire généré avant ne vaut plus
     this.inventaireMisAJour = false;
     this.enableButton();
 
-    for(let client of this.map.keys()){
-      this.clients.push(client);
+    if(conflits.length > 0){
+      let apercu = conflits.slice(0, 10).join(', ');
+      let reste = conflits.length - 10;
+      this.message.add({ severity: 'warn', summary: 'Pièces déjà présentes', detail:
+        conflits.length + " pièce(s) de « " + nom + " » portent un numéro déjà importé depuis un autre fichier : "
+        + apercu + (reste > 0 ? ' et ' + reste + ' autre(s)' : '') + ". Les fiches déjà en place ont été gardées." });
     }
+    if(nouvelles === 0 && conflits.length === 0){
+      this.message.add({ severity: 'info', summary: format.nom + ' relu', detail:
+        "« " + nom + " » n'apporte aucune nouvelle fiche : la planche était déjà à jour." });
+    }
+  }
+
+  /*Retire une pièce de la planche, de son fichier d'origine et des calculs*/
+  private retirerPiece(piece : string) {
+    let fichier = this.origines.get(piece);
+    if(fichier !== undefined)
+      fichier.pieces = fichier.pieces.filter(p => p !== piece);
+
+    this.map.delete(piece);
+    this.clients_nom_map.delete(piece);
+    this.origines.delete(piece);
+    this.removeClientFromList(this.clients, piece);
+    this.removeClientFromList(this.tournee1, piece);
+    this.removeClientFromList(this.tournee2, piece);
+  }
+
+  /*Retirer un fichier importé par erreur sans perdre le reste de la journée*/
+  demanderRetraitFichier(fichier : FichierImporte) {
+    this.confirmation.confirm({
+      message: 'Retirer « ' + fichier.nom + ' » de la journée ? Ses ' + fichier.pieces.length
+        + ' fiche(s) quitteront la planche ; les autres fichiers ne bougent pas.',
+      header: 'Retirer le fichier ?',
+      acceptLabel: 'Retirer',
+      rejectLabel: 'Annuler',
+      acceptButtonStyleClass: 'custom-accept-button',
+      rejectButtonStyleClass: 'custom-reject-button',
+      accept: () => this.retirerFichier(fichier),
+      reject: () => {}
+    });
+  }
+
+  retirerFichier(fichier : FichierImporte) {
+    fichier.pieces.slice().forEach(piece => this.retirerPiece(piece));
+    this.fichiers = this.fichiers.filter(f => f !== fichier);
+    this.inventaireMisAJour = false;
+
+    //plus rien d'importé : on remet l'écran dans son état de départ
+    if(this.fichiers.length === 0)
+      this.resetFactures();
+  }
+
+  private viderChamp(selecteur : string) {
+    let champ = document.querySelector(selecteur) as HTMLInputElement;
+    if(champ)
+      champ.value = '';
+  }
+
+  //La planche porte-t-elle les deux formats à la fois ? Les fiches sont alors
+  //étiquetées Facture / Devis pour qu'on sache d'où chacune vient.
+  get formatsMelanges() : boolean {
+    return new Set(this.fichiers.map(f => f.format.nomCourt)).size > 1;
+  }
+
+  provenance(piece : string) : string {
+    return this.origines.get(piece)?.format.nomCourt ?? '';
   }
     
   //Fichier d'inventaire à mettre à jour, gardé tel quel : on le relit à chaque
@@ -173,11 +289,7 @@ JSON: any;
 
     const totaux = this.updateInventaire.totauxParReference(this.map);
     if(totaux.size === 0){
-      //selon le format, la référence vient d'une colonne ou des crochets du nom
-      const colonneRef = this.format?.colonnes.refArticle;
-      this.message.add({ severity: 'error', summary: 'Erreur', detail: colonneRef
-        ? "Aucune référence interne dans le fichier de factures. Vérifiez que la colonne « " + colonneRef + " » est bien présente à l'export."
-        : "Aucune référence interne dans le fichier importé : dans une tournée devis, elle doit précéder le nom du produit entre crochets, par exemple « [PANZ] PANZEROTTINI POM/MOZ 1KG »." });
+      this.message.add({ severity: 'error', summary: 'Erreur', detail: this.pourquoiAucuneReference() });
       return;
     }
 
@@ -199,6 +311,26 @@ JSON: any;
     } catch (erreur : any) {
       this.message.add({ severity: 'error', summary: 'Erreur', detail: erreur?.message || "Impossible de générer le fichier d'inventaire." });
     }
+  }
+
+  /*Selon le format, la référence interne vient d'une colonne ou des crochets du
+  nom de produit : on dit à l'utilisateur où regarder dans chacun des fichiers
+  qu'il a importés.*/
+  private pourquoiAucuneReference() : string {
+    let colonnes = Array.from(new Set(this.fichiers
+      .map(f => f.format.colonnes.refArticle)
+      .filter((colonne) : colonne is string => colonne !== undefined)));
+
+    let detail = this.fichiers.length > 1
+      ? "Aucune référence interne dans les fichiers importés."
+      : "Aucune référence interne dans le fichier importé.";
+
+    if(colonnes.length > 0)
+      detail += " Vérifiez que la colonne « " + colonnes.join(" », « ") + " » est bien présente à l'export.";
+    if(this.fichiers.some(f => f.format.refDansNomArticle))
+      detail += " Dans une tournée devis, elle doit précéder le nom du produit entre crochets, par exemple « [PANZ] PANZEROTTINI POM/MOZ 1KG ».";
+
+    return detail;
   }
 
   //Le catalogue ne dépend que de l'inventaire importé, pas des factures
@@ -274,7 +406,7 @@ JSON: any;
 
   //L'unique action mise en avant : la prochaine chose à faire dans la routine
   get prochaineEtape() : 'importer' | 'imprimer' | 'inventaire' | 'mettre-a-jour' | 'catalogue' | null {
-    if(this.format === null)
+    if(this.fichiers.length === 0)
       return 'importer';
     const aImprimer = [1, 2, 3].some(num => this.listeDe(num).length > 0 && this.etatImpression(num) !== 'imprime');
     if(aImprimer)
@@ -482,10 +614,7 @@ JSON: any;
       acceptButtonStyleClass: 'custom-accept-button',
       rejectButtonStyleClass: 'custom-reject-button',
       accept:()=>{
-        this.map.delete(client);
-        this.removeClientFromList(this.clients, client);
-        this.removeClientFromList(this.tournee1, client);
-        this.removeClientFromList(this.tournee2, client);
+        this.retirerPiece(client);
       },
       reject:()=>{}
     });
@@ -536,10 +665,7 @@ JSON: any;
   reset() {
     this.resetFactures();
 
-    let inventaireInput = document.querySelector('.import-inventaire') as HTMLInputElement;
-    if (inventaireInput) {
-      inventaireInput.value = '';
-    }
+    this.viderChamp('.import-inventaire');
     this.inventaire = null;
     this.nomInventaire = '';
     this.catalogueGenere = false;
@@ -547,16 +673,13 @@ JSON: any;
 
   //Remise à zéro des seules factures, utilisée aussi avant chaque nouvel import
   private resetFactures() {
-    let fileInput = document.querySelector('.import-factures') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = ''; // Efface la sélection du fichier
-    }
+    this.viderChamp('.import-factures');
 
     this.clients = [];
     this.tournee1 = [];
     this.tournee2 = [];
-    this.format = null;
-    this.nomFactures = '';
+    this.fichiers = [];
+    this.origines.clear();
     this.impressions.clear();
     this.recherche = '';
     this.inventaireMisAJour = false;

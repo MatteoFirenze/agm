@@ -10,7 +10,7 @@ catalogue_produits.html.*/
 
 export interface ArticleCatalogue {
   nom : string,
-  prix : number,  //« Prix de vente » Odoo, déjà TTC : affiché sans conversion
+  prix : number,  //« Prix de vente » Odoo, déjà HTVA : affiché sans conversion
   qte : number,
 }
 
@@ -148,10 +148,10 @@ table.prod-table tbody tr:hover{background:var(--gp);}
 </style></head><body>
 <div class="header">${logo}
   <h1>${titre}</h1>
-  <div class="sub">Catalogue Produits · Prix TTC · Quantités disponibles en stock</div>
+  <div class="sub">Catalogue Produits · Prix HTVA · Quantités disponibles en stock</div>
 </div>
 <div class="columns"><div class="col">${gauche.map(g => this.blocGroupe(g)).join('')}</div><div class="col">${droite.map(g => this.blocGroupe(g)).join('')}</div></div>
-<div class="footer">Prix exprimés TTC · Quantités sujettes à variation selon disponibilité</div>
+<div class="footer">Prix exprimés HTVA · Quantités sujettes à variation selon disponibilité</div>
 </body></html>`;
   }
 
@@ -175,7 +175,7 @@ table.prod-table tbody tr:hover{background:var(--gp);}
     ).join('');
 
     return `<div class="cat-block"><h2 class="cat-title">${this.echapper(groupe.titre)}</h2>`
-      + `<table class="prod-table"><thead><tr><th>Article</th><th>Prix TTC</th><th>Qté</th></tr></thead>`
+      + `<table class="prod-table"><thead><tr><th>Article</th><th>Prix HTVA</th><th>Qté</th></tr></thead>`
       + `<tbody>${lignes}</tbody></table></div>`;
   }
 

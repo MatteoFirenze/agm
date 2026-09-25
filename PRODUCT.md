@@ -14,7 +14,7 @@ One person: the owner/manager of Vins & Gastronomie Firenze, working alone at an
 
 AGM turns Odoo exports into everything needed to prepare a delivery day, without re-typing:
 
-- import the day's orders (Odoo « Écriture comptable » or « Tournée devis » export) and see one entry per client invoice/order;
+- import the day's orders — the Odoo « Écriture comptable » and « Tournée devis » exports can be loaded together, or one after the other, and share one board with one entry per invoice/order;
 - split those clients across three delivery rounds (tournées) by drag-and-drop;
 - print, per tournée, the picking list PDF grouped by storage (wines section plus product-family sections);
 - deduct invoiced quantities from the inventory export and download the updated inventory file;
@@ -29,8 +29,10 @@ Built around this business's own Odoo exports and routine: it recognises both ex
 ## Operating Context
 
 - Input files are `.xlsx`/`.xlsb` exports from Odoo: orders (two formats) and inventory. The detected format is shown after import so the user can confirm the file was read as intended.
-- The same client (enseigne) can have several invoices; entries show the invoice/order number to tell them apart.
+- The same client (enseigne) can have several invoices; entries show the invoice/order number to tell them apart. When both export formats are on the board, each entry is tagged Facture or Devis.
+- Several files coexist: re-importing a file under the same name refreshes its entries in place, and a single file can be removed without disturbing the others.
 - Clients can be removed from the day (trash) and their invoice detail inspected before printing; removed invoices are excluded from inventory deduction.
+- A file that matches no known export is refused without touching what is already on the board.
 - Outputs are downloads: `Liste.pdf` per tournée, the recalculated inventory workbook, and `catalogue_produits.html`.
 - UI language is French and the domain vocabulary is French (tournée, facture, inventaire, catalogue, enseigne).
 
@@ -39,7 +41,7 @@ Built around this business's own Odoo exports and routine: it recognises both ex
 - Angular 16 single-page app, PrimeNG 16 (messages, dialogs, confirm), Angular CDK drag-and-drop, Bootstrap CSS from CDN; Excel via ExcelJS, PDFs via pdfmake. Built into `docs/` for static hosting.
 - Everything runs client-side; no backend, no persistence between sessions. Reset clears the day.
 - Exactly three tournées today; all imported clients start in tournée 1.
-- Test suite (176 Karma/Jasmine tests, see TESTS.md) covers parsing, grouping, PDF content, inventory update, and catalogue; fixture files are generated with `npm run fixtures`.
+- Test suite (189 Karma/Jasmine tests, see TESTS.md) covers parsing, grouping, PDF content, inventory update, and catalogue; fixture files are generated with `npm run fixtures`.
 - Undecided: whether the number of tournées should become variable.
 
 ## Brand Commitments

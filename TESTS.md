@@ -1,8 +1,8 @@
 # Tests automatisés
 
-176 tests couvrent la lecture des fichiers Excel, la reconnaissance des deux
-formats d'import, les regroupements, le contenu des PDF, la mise à jour de
-l'inventaire et le catalogue produits.
+189 tests couvrent la lecture des fichiers Excel, la reconnaissance des deux
+formats d'import, leur cohabitation sur la même planche, les regroupements, le
+contenu des PDF, la mise à jour de l'inventaire et le catalogue produits.
 
 ## Lancer les tests
 
@@ -38,10 +38,10 @@ Ces fichiers sont **générés**, pas versionnés : la source est
 
 | Fichier | Tests | Vérifie |
 |---|---:|---|
-| `liste-commande.component.spec.ts` | 49 | import des deux formats, réimport sans doublon, total produits, impression par tournée, suppression d'une facture, mise à jour de l'inventaire de bout en bout, catalogue produits, fichier d'un format inconnu, réinitialisation |
+| `liste-commande.component.spec.ts` | 62 | import des deux formats, **facture et devis sur la même planche**, réimport sans doublon, retrait d'un fichier, total produits, impression par tournée, suppression d'une facture, mise à jour de l'inventaire de bout en bout, catalogue produits, fichier d'un format inconnu, réinitialisation |
 | `sort-excel.service.spec.ts` | 36 | reconnaissance du format par les intitulés, colonne obligatoire manquante, regroupement par pièce, propagation du client et du numéro de pièce, référence entre crochets, produit répété, avoirs, lignes sans produit, produits sans catégorie, **équivalence des deux formats** |
 | `update-inventaire.service.spec.ts` | 29 | totaux par référence, exclusion des alcools, casse et espaces, colonnes retirées et réordonnées, déduction sur les 2 colonnes de quantité, négatifs, décimales, références inconnues, **fichier source jamais modifié**, inventaire mal formé |
-| `generate-catalogue.service.spec.ts` | 21 | regroupement par étiquette (à défaut par catégorie), prix repris tels quels (TTC), articles épuisés écartés, tri par nom, ordre des groupes, répartition en 2 colonnes, échappement HTML, logo facultatif, rien de téléchargé si catalogue vide |
+| `generate-catalogue.service.spec.ts` | 21 | regroupement par étiquette (à défaut par catégorie), prix repris tels quels (HTVA), articles épuisés écartés, tri par nom, ordre des groupes, répartition en 2 colonnes, échappement HTML, logo facultatif, rien de téléchargé si catalogue vide |
 | `generate-pdf.service.spec.ts` | 18 | présence ou absence de la section Vini, ordre des sections, découpage en colonnes (15 vins / 22 autres), sauts de page, format `qte⇥nom`, génération d'un vrai PDF |
 | `formats-fichier.spec.ts` | 13 | extraction de la référence entre crochets, colonnes retrouvées quelle que soit leur position, intitulés en double, colonnes d'un autre format |
 | `familles.spec.ts` | 5 | familles FA0001 / FA0004 exclues des agrégats |
@@ -67,6 +67,12 @@ Deux mécanismes rendent les deux formats interchangeables :
   vue, une ligne sans client au dernier client vu. Dans une tournée devis c'est
   le cas de toutes les lignes de continuation ; le client, lui, est souvent le
   même sur tout le fichier, d'où le regroupement par pièce et non par client.
+- **fusion** : les fichiers importés s'empilent sur la même planche — la facture
+  du jour et la tournée devis du comptoir se préparent ensemble. Le composant
+  garde pour chaque fichier la liste des pièces qu'il a apportées
+  (`FichierImporte`), ce qui permet de le retirer ou de le réimporter sans
+  toucher à la répartition faite pour l'autre. Les fiches déjà glissées en
+  tournée gardent leur place ; seules les pièces nouvelles arrivent en tournée 1.
 - **`separerRefEtNom()`** : le texte entre crochets est exactement la
   « Référence interne » du produit, et ce qui suit exactement son « Nom » tel que
   l'écriture comptable et l'inventaire l'écrivent. Les deux formats donnent donc
@@ -163,8 +169,10 @@ colonne (`lignesParTitre()`), donc changer l'ordre ne les casse pas.
   relire le classeur produit.
 - `GeneratePdfService.construireDocument()` renvoie la définition pdfmake sans
   déclencher de téléchargement : c'est ce qui rend le contenu des PDF vérifiable.
-- `SortExcelService.sortExcel()` renvoie le format reconnu, ou `null` s'il n'en
-  reconnaît aucun — auquel cas il a déjà averti et appelé le callback de reset.
+- `SortExcelService.sortExcel()` range dans la map qu'on lui passe et renvoie le
+  format reconnu, ou `null` s'il n'en reconnaît aucun — auquel cas il a déjà
+  averti. Il ne touche jamais à la journée en place : le composant lui donne une
+  map neuve à chaque import et ne la fusionne que si le fichier est reconnu.
   Plusieurs tests s'appuient sur cette valeur de retour.
 - Le catalogue intègre `assets/catalogue-logo.png`, récupéré par `fetch` : les
   tests remplacent `window.fetch` pour ne pas dépendre de cet asset.

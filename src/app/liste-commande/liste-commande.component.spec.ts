@@ -54,6 +54,14 @@ describe('ListeCommandeComponent', () => {
     return { currentTarget: { files: [f] }, target: { files: [f] } };
   }
 
+  /*Un seul champ de fichiers portant plusieurs classeurs, comme quand
+  l'utilisateur sélectionne la facture et le devis d'un coup*/
+  async function plusieursFichiers(...classeurs : [ExcelJS.Workbook, string][]) : Promise<any> {
+    const liste = await Promise.all(classeurs.map(async ([workbook, nom]) =>
+      new File([await workbook.xlsx.writeBuffer() as any], nom)));
+    return { currentTarget: { files: liste }, target: { files: liste } };
+  }
+
   async function importerFactures(factures : FactureFixture[] = FACTURES_STANDARD) {
     await component.readAndSortExcel(await fichier(await construireEcritureComptable(factures), 'factures.xlsx'));
   }
@@ -139,15 +147,23 @@ describe('ListeCommandeComponent', () => {
       expect(component.map.size).toBe(3);
     });
 
-    it('remet les factures déjà triées en tournée dans la première colonne', async () => {
+    it('laisse les fiches déjà réparties dans leur tournée quand on réimporte le fichier', async () => {
       await importerFactures();
       component.tournee1.push(component.clients.shift());
-      expect(component.tournee1.length).toBe(1);
 
       await importerFactures();
 
-      expect(component.tournee1.length).withContext('les tournées sont réinitialisées').toBe(0);
-      expect(component.clients.length).toBe(3);
+      expect(component.tournee1).withContext('la répartition déjà faite est gardée').toEqual(['INV/2026/0001']);
+      expect(component.clients).toEqual(['INV/2026/0002', 'INV/2026/0003']);
+    });
+
+    it('retire les pièces qui ont disparu du fichier réimporté', async () => {
+      await importerFactures();
+
+      await importerFactures(FACTURES_STANDARD.slice(0, 2));
+
+      expect(component.clients).toEqual(['INV/2026/0001', 'INV/2026/0002']);
+      expect(component.map.has('INV/2026/0003')).withContext('absente du nouvel export').toBeFalse();
     });
 
     it('ne fait rien si aucun fichier n\'est choisi', async () => {
@@ -519,8 +535,8 @@ describe('ListeCommandeComponent', () => {
     it('reconnaît le format sans que l\'utilisateur ait à le dire', async () => {
       await importerTournee();
 
-      expect(component.format!.nom).toBe('Tournée devis');
-      expect(component.nomFactures).toBe('tournee.xlsx');
+      expect(component.fichiers[0].format.nom).toBe('Tournée devis');
+      expect(component.fichiers[0].nom).toBe('tournee.xlsx');
       expect(component.isButtonDisabled).toBeFalse();
     });
 
@@ -595,14 +611,6 @@ describe('ListeCommandeComponent', () => {
       expect(alerte.detail).toContain('OLI5');
     });
 
-    it('remplace les factures déjà importées plutôt que de s\'y ajouter', async () => {
-      await importerFactures();
-      await importerTournee();
-
-      expect(component.clients).toEqual(['S00891', 'S00892', 'S00893']);
-      expect(component.map.size).toBe(3);
-    });
-
     it('affiche le nom du fichier et le format dans la barre d\'outils', async () => {
       await importerTournee();
       fixture.detectChanges();
@@ -621,12 +629,167 @@ describe('ListeCommandeComponent', () => {
       expect(document.querySelector('.format-detecte')).toBeNull();
     });
 
-    it('oublie le format à la réinitialisation', async () => {
+    it('oublie les fichiers importés à la réinitialisation', async () => {
       await importerTournee();
       component.reset();
 
-      expect(component.format).toBeNull();
-      expect(component.nomFactures).toBe('');
+      expect(component.fichiers).toEqual([]);
+      expect(component.origines.size).toBe(0);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //Une journée se prépare souvent à partir de deux exports : les factures du
+  //jour et la tournée devis du comptoir. Les deux tiennent sur la même planche.
+  describe('facture et devis sur la même planche', () => {
+
+    it('ajoute le second fichier aux fiches déjà présentes', async () => {
+      await importerFactures();
+      await importerTournee();
+
+      expect(component.clients).toEqual(
+        ['INV/2026/0001', 'INV/2026/0002', 'INV/2026/0003', 'S00891', 'S00892', 'S00893']);
+      expect(component.map.size).toBe(6);
+      expect(component.fichiers.map(f => f.nom)).toEqual(['factures.xlsx', 'tournee.xlsx']);
+    });
+
+    it('lit les deux fichiers choisis en une seule fois', async () => {
+      await component.readAndSortExcel(await plusieursFichiers(
+        [await construireEcritureComptable(FACTURES_STANDARD), 'factures.xlsx'],
+        [await construireTourneeDevis(COMMANDES_STANDARD), 'tournee.xlsx']));
+
+      expect(component.clients.length).toBe(6);
+      expect(component.fichiers.map(f => f.format.nom)).toEqual(['Écriture comptable', 'Tournée devis']);
+      expect(component.fichiers.map(f => f.pieces.length)).toEqual([3, 3]);
+    });
+
+    it('garde la répartition en tournées déjà faite', async () => {
+      await importerFactures();
+      component.tournee2.push(component.clients.shift());
+
+      await importerTournee();
+
+      expect(component.tournee2).toEqual(['INV/2026/0001']);
+      expect(component.clients).toEqual(['INV/2026/0002', 'INV/2026/0003', 'S00891', 'S00892', 'S00893']);
+    });
+
+    it('additionne les deux fichiers dans le total produits', async () => {
+      await importerFactures();
+      await importerTournee();
+
+      component.computeTotalItems();
+
+      //SCAMPI : 10 + 20 + 5 facturés, 3 commandés
+      expect(envoyeAuPdf[POISSONS]).toEqual([[38, 'SCAMPI TEST 1KG']]);
+      //ORECCHIETTE : 6 facturés, 8 commandés
+      expect(envoyeAuPdf[PATES_FRAICHES]).toEqual([[14, 'ORECCHIETTE TEST 1KG']]);
+    });
+
+    it('imprime une tournée qui mélange facture et commande', async () => {
+      await importerFactures();
+      await importerTournee();
+      component.tournee1.push(...component.clients.splice(4, 1)); //S00892
+      component.tournee1.push(...component.clients.splice(1, 1)); //INV/2026/0002
+
+      await component.imprimer(2);
+
+      expect(parNom(envoyeAuPdf[VINS]))
+        .toEqual([[36, 'CHIARETTO TEST 1.5LT'], [18, 'GRILLO TEST 0.75']]);
+      expect(envoyeAuPdf[POISSONS].map(l => l[0]).sort((a, b) => a - b))
+        .withContext('les 2 lignes SCAMPI restent distinctes').toEqual([3, 10]);
+    });
+
+    it('déduit de l\'inventaire les lignes des deux fichiers', async () => {
+      const capture = interceptTelechargement();
+      await importerFactures();
+      await importerTournee();
+      await importerInventaire();
+
+      await component.mettreAJourInventaire();
+
+      const inventaire = await inventaireGenere(capture);
+      expect([inventaire.parRef('SCAM')[DISPO], inventaire.parRef('SCAM')[PREVU]])
+        .withContext('100 - 38 et 110 - 38').toEqual([62, 72]);
+      expect(inventaire.parRef('OREC')[DISPO]).withContext('50 - 14').toBe(36);
+    });
+
+    it('étiquette les fiches quand la planche mélange les deux formats', async () => {
+      await importerFactures();
+      expect(component.formatsMelanges).withContext('un seul format : pas d\'étiquette').toBeFalse();
+
+      await importerTournee();
+
+      expect(component.formatsMelanges).toBeTrue();
+      expect(component.provenance('INV/2026/0001')).toBe('Facture');
+      expect(component.provenance('S00891')).toBe('Devis');
+    });
+
+    it('montre une puce par fichier, avec son format et son nombre de fiches', async () => {
+      await importerFactures();
+      await importerTournee();
+      fixture.detectChanges();
+
+      const puces = Array.from(document.querySelectorAll('.fichier-charge'));
+      expect(puces.length).toBe(2);
+      expect(puces.map(p => p.querySelector('.format-detecte')!.textContent!.trim()))
+        .toEqual(['Écriture comptable', 'Tournée devis']);
+      expect(puces[1].querySelector('.fichier-compte')!.textContent!.trim()).toBe('3 fiches');
+    });
+
+    it('ne perd pas la journée quand un fichier est refusé', async () => {
+      await importerFactures();
+      const workbook = new ExcelJS.Workbook();
+      workbook.addWorksheet('Sheet1').addRow(['Colonne A', 'Colonne B']);
+
+      await component.readAndSortExcel(await fichier(workbook, 'inconnu.xlsx'));
+
+      expect(component.clients.length).withContext('les factures restent en place').toBe(3);
+      expect(component.fichiers.length).toBe(1);
+      expect(component.isButtonDisabled).toBeFalse();
+      expect(messages.find(m => m.severity === 'error')).toBeDefined();
+    });
+
+    it('garde la fiche en place quand deux fichiers portent le même numéro de pièce', async () => {
+      await importerFactures();
+
+      await component.readAndSortExcel(await fichier(await construireEcritureComptable([{
+        numero: 'INV/2026/0001', codeClient: '9', nomClient: 'Autre Client',
+        lignes: [{ codeProduit: '1', nomProduit: 'SCAMPI TEST 1KG', famille: FAMILLE.POISSON, qte: 4, ref: 'SCAM' }],
+      }]), 'doublon.xlsx'));
+
+      expect(component.clients_nom_map.get('INV/2026/0001')).toBe('Trattoria Uno');
+      expect(component.clients.length).toBe(3);
+      expect(messages.find(m => m.severity === 'warn')!.detail).toContain('INV/2026/0001');
+    });
+
+    it('retire un fichier sans toucher à l\'autre', async () => {
+      await importerFactures();
+      await importerTournee();
+
+      component.retirerFichier(component.fichiers[0]);
+
+      expect(component.clients).toEqual(['S00891', 'S00892', 'S00893']);
+      expect(component.map.size).toBe(3);
+      expect(component.fichiers.map(f => f.nom)).toEqual(['tournee.xlsx']);
+    });
+
+    it('revient à l\'écran de départ quand le dernier fichier est retiré', async () => {
+      await importerTournee();
+
+      component.retirerFichier(component.fichiers[0]);
+
+      expect(component.clients).toEqual([]);
+      expect(component.isButtonDisabled).toBeTrue();
+      expect(component.prochaineEtape).toBe('importer');
+    });
+
+    it('décompte du fichier la fiche retirée par la corbeille', async () => {
+      await importerFactures();
+      accepterLaConfirmation();
+
+      component.deleteClient('INV/2026/0002');
+
+      expect(component.fichiers[0].pieces).toEqual(['INV/2026/0001', 'INV/2026/0003']);
     });
   });
 
@@ -639,7 +802,7 @@ describe('ListeCommandeComponent', () => {
 
       await component.readAndSortExcel(await fichier(workbook, 'inconnu.xlsx'));
 
-      expect(component.format).toBeNull();
+      expect(component.fichiers).toEqual([]);
       expect(component.isButtonDisabled).toBeTrue();
       expect(component.clients).toEqual([]);
       expect(messages.find(m => m.severity === 'error')).toBeDefined();
