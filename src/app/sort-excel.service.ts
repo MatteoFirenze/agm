@@ -16,13 +16,6 @@ export class SortExcelService {
   message: any;
   map: any;
 
-  // Declare the callback function
-  private resetCallback!: () => void;
-
-   // Define a function to receive the callback
-   setResetCallback(callback: () => void) {
-    this.resetCallback = callback;
-  }
   /*Range les lignes du fichier importé par pièce : une facture pour l'export
   « Écriture comptable », un bon de commande pour l'export « Tournée devis ».
   Le format est reconnu à partir des intitulés de la ligne 1 (formats-fichier.ts),
@@ -145,7 +138,8 @@ export class SortExcelService {
       "Fichier illisible : il ne correspond à aucun export attendu (« " + FORMATS.map(f => f.nom).join(" », « ") + " »).\n"
       + 'Au plus proche (« ' + plusProche!.format.nom + ' »), ces colonnes manquent : '
       + plusProche!.manquants.map(champ => plusProche!.format.colonnes[champ]).join(', ') });
-    this.resetCallback();
+    //on ne touche pas à la journée déjà en place : un fichier refusé ne doit
+    //rien faire perdre de ce qui a déjà été importé et réparti
     return null;
   }
 

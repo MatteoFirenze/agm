@@ -4,33 +4,43 @@
   <nav class="rail" aria-label="Étapes de la journée">
     <ol class="etapes">
 
-      <li class="etape" [class.etape--faite]="format" [class.etape--suivante]="prochaineEtape === 'importer'" [attr.aria-current]="prochaineEtape === 'importer' ? 'step' : null">
+      <li class="etape" [class.etape--faite]="fichiers.length" [class.etape--suivante]="prochaineEtape === 'importer'" [attr.aria-current]="prochaineEtape === 'importer' ? 'step' : null">
         <div class="etape-tete">
           <span class="etape-marque" aria-hidden="true">
-            <svg icone="fait" *ngIf="format; else num1"></svg><ng-template #num1>1</ng-template>
+            <svg icone="fait" *ngIf="fichiers.length; else num1"></svg><ng-template #num1>1</ng-template>
           </span>
           <span class="etape-nom">Importer</span>
         </div>
         <div class="etape-corps">
           <label class="bouton" [class.bouton--principal]="prochaineEtape === 'importer'">
             <svg icone="importer"></svg>
-            Importer factures
-            <input type="file" accept=".xlsx, .xlsb" (change)="readAndSortExcel($event)" class="import-hidden import-factures">
+            {{ fichiers.length ? 'Ajouter un fichier' : 'Importer factures' }}
+            <input type="file" multiple accept=".xlsx, .xlsb" (change)="readAndSortExcel($event)" class="import-hidden import-factures"
+              [attr.aria-label]="fichiers.length ? 'Ajouter un fichier de factures ou de devis' : null">
           </label>
-          <span class="fichier-charge" *ngIf="format" title="{{nomFactures}}">
-            <span class="fichier-nom">{{nomFactures}}</span><span class="format-detecte">{{format.nom}}</span>
+          <span class="fichier-charge" *ngFor="let fichier of fichiers" title="{{fichier.nom}}">
+            <span class="fichier-texte">
+              <span class="fichier-nom">{{fichier.nom}}</span>
+              <span class="fichier-lu">
+                <span class="format-detecte">{{fichier.format.nom}}</span>
+                <span class="fichier-compte">{{fichier.pieces.length}} {{ fichier.pieces.length > 1 ? 'fiches' : 'fiche' }}</span>
+              </span>
+            </span>
+            <button class="fichier-retirer" (click)="demanderRetraitFichier(fichier)" [attr.aria-label]="'Retirer ' + fichier.nom + ' de la journée'">
+              <svg icone="effacer"></svg>
+            </button>
           </span>
-          <span class="etape-etat" *ngIf="!format">Export Odoo du jour</span>
+          <span class="etape-etat" *ngIf="!fichiers.length">Facture et devis, ensemble</span>
         </div>
       </li>
 
-      <li class="etape" [class.etape--attente]="!format">
+      <li class="etape" [class.etape--attente]="!fichiers.length">
         <div class="etape-tete">
           <span class="etape-marque" aria-hidden="true">2</span>
           <span class="etape-nom">Répartir</span>
         </div>
         <div class="etape-corps">
-          <span class="etape-etat" *ngIf="format; else rienARepartir">
+          <span class="etape-etat" *ngIf="fichiers.length; else rienARepartir">
             <strong class="chiffre">{{totalClients}}</strong> fiches ·
             <span class="repartition">
               <span class="pastille pastille--t1"></span>{{clients.length}}
@@ -42,10 +52,10 @@
         </div>
       </li>
 
-      <li class="etape" [class.etape--attente]="!format" [class.etape--faite]="format && prochaineEtape !== 'imprimer'" [class.etape--suivante]="prochaineEtape === 'imprimer'" [attr.aria-current]="prochaineEtape === 'imprimer' ? 'step' : null">
+      <li class="etape" [class.etape--attente]="!fichiers.length" [class.etape--faite]="fichiers.length && prochaineEtape !== 'imprimer'" [class.etape--suivante]="prochaineEtape === 'imprimer'" [attr.aria-current]="prochaineEtape === 'imprimer' ? 'step' : null">
         <div class="etape-tete">
           <span class="etape-marque" aria-hidden="true">
-            <svg icone="fait" *ngIf="format && prochaineEtape !== 'imprimer'; else num3"></svg><ng-template #num3>3</ng-template>
+            <svg icone="fait" *ngIf="fichiers.length && prochaineEtape !== 'imprimer'; else num3"></svg><ng-template #num3>3</ng-template>
           </span>
           <span class="etape-nom">Imprimer</span>
         </div>
@@ -54,7 +64,7 @@
             <svg icone="total"></svg>
             Total produits
           </button>
-          <span class="etape-etat" *ngIf="format">
+          <span class="etape-etat" *ngIf="fichiers.length">
             <strong class="chiffre">{{nbTourneesImprimees}}/3</strong> tournées imprimées
           </span>
         </div>
@@ -119,7 +129,7 @@
         <svg icone="chercher"></svg>
         <input #champRecherche type="search" class="recherche-champ" placeholder="Trouver un client ou un n° de facture"
           aria-label="Trouver un client" [value]="recherche" (input)="chercher(champRecherche.value)"
-          (keydown.escape)="effacerRecherche(champRecherche)" [disabled]="!format">
+          (keydown.escape)="effacerRecherche(champRecherche)" [disabled]="!fichiers.length">
         <button *ngIf="recherche" class="recherche-effacer" (click)="effacerRecherche(champRecherche)" aria-label="Effacer la recherche">
           <svg icone="effacer"></svg>
         </button>
@@ -160,6 +170,7 @@
               <div class="fiche-tete">
                 <svg icone="poignee" class="fiche-poignee"></svg>
                 <span class="facture-num">{{client}}</span>
+                <span class="fiche-source" *ngIf="formatsMelanges">{{provenance(client)}}</span>
                 <span class="fiche-actions">
                   <button class="fiche-action" (click)="declencheurDetail = $any($event.currentTarget); developperFacture(client)" [attr.aria-label]="'Voir le détail de ' + client">
                     <svg icone="detail"></svg>
@@ -176,14 +187,15 @@
             </div>
 
             <div class="rail-vide" *ngIf="liste.length === 0">
-              <ng-container *ngIf="!format && num === 1">
+              <ng-container *ngIf="!fichiers.length && num === 1">
                 <strong>La planche est vide.</strong>
-                Importez l'export Odoo du jour : chaque facture arrive ici sous forme de fiche.
+                Importez les exports Odoo du jour — facture et devis peuvent être choisis ensemble :
+                chaque pièce arrive ici sous forme de fiche.
               </ng-container>
-              <ng-container *ngIf="!format && num !== 1">
+              <ng-container *ngIf="!fichiers.length && num !== 1">
                 Les fiches glissées depuis la tournée 1 se rangent ici.
               </ng-container>
-              <ng-container *ngIf="format">
+              <ng-container *ngIf="fichiers.length">
                 Glissez une fiche ici.
               </ng-container>
             </div>

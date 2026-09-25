@@ -15,7 +15,6 @@ describe('SortExcelService', () => {
   let map : Map<string, Commande>;
   let noms : Map<string, string>;
   let message : { add : jasmine.Spy };
-  let resetAppele : boolean;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
@@ -24,8 +23,6 @@ describe('SortExcelService', () => {
     map = new Map();
     noms = new Map();
     message = { add: jasmine.createSpy('add') };
-    resetAppele = false;
-    service.setResetCallback(() => { resetAppele = true; });
   });
 
   /*Lance le tri sur un classeur fabriqué à partir des factures données*/
@@ -68,8 +65,7 @@ describe('SortExcelService', () => {
 
       expect(message.add).toHaveBeenCalled();
       expect(message.add.calls.mostRecent().args[0].severity).toBe('error');
-      expect(resetAppele).withContext('le callback de reset doit être appelé').toBeTrue();
-      expect(map.size).toBe(0);
+      expect(map.size).withContext('rien n’est rangé depuis un fichier refusé').toBe(0);
     });
 
     it('signale chaque colonne obligatoire manquante', async () => {
@@ -296,7 +292,6 @@ describe('SortExcelService', () => {
       await trierTournee(COMMANDES_STANDARD, { colonnesAbsentes: [COLONNES_TOURNEE.numero] });
 
       expect(message.add.calls.mostRecent().args[0].severity).toBe('error');
-      expect(resetAppele).toBeTrue();
       expect(map.size).toBe(0);
     });
 

@@ -18,7 +18,6 @@ describe('UpdateInventaireService', () => {
     TestBed.configureTestingModule({});
     service = TestBed.inject(UpdateInventaireService);
     sortExcel = TestBed.inject(SortExcelService);
-    sortExcel.setResetCallback(() => {});
   });
 
   /*Construit la map de factures comme le fait le composant après un import*/

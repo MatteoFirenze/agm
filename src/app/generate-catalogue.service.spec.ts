@@ -145,15 +145,16 @@ describe('GenerateCatalogueService', () => {
       expect(service.formaterQte(28.35)).toBe('28,35');
     });
 
-    it('construit une page en 2 colonnes, prix TTC', async () => {
+    it('construit une page en 2 colonnes, prix HTVA', async () => {
       const html = service.construireHtml(await lire(INVENTAIRE_STANDARD), null);
       const page = new DOMParser().parseFromString(html, 'text/html');
 
       expect(page.querySelectorAll('.columns > .col').length).toBe(2);
       expect(Array.from(page.querySelectorAll('.cat-title')).map(t => t.textContent))
         .toEqual(['Poissons', 'Pâtes Fraiches', 'Divers', 'Verdure', 'Vins']);
-      expect(page.querySelector('thead')!.textContent).toBe('ArticlePrix TTCQté');
-      expect(html).not.toContain('HTVA');
+      //le « Prix de vente » Odoo est hors TVA : le catalogue le dit et le reprend tel quel
+      expect(page.querySelector('thead')!.textContent).toBe('ArticlePrix HTVAQté');
+      expect(html).not.toContain('TTC');
 
       const scampi = page.querySelector('tbody tr')!.querySelectorAll('td');
       expect(Array.from(scampi).map(td => td.textContent)).toEqual(['SCAMPI TEST 1KG', '30,00 €', '100']);

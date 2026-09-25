@@ -23,6 +23,8 @@ export type Colonnes = Partial<Record<ChampFichier, number>>;
 export interface FormatFichier {
   /*nom montré à l'utilisateur une fois le fichier reconnu*/
   nom : string,
+  /*nom d'une ligne, pour étiqueter une fiche quand la planche mélange les deux*/
+  nomCourt : string,
   /*intitulé exact de la colonne, pour chaque champ que le format porte*/
   colonnes : Partial<Record<ChampFichier, string>>,
   /*true quand la référence interne n'a pas de colonne à elle mais est collée
@@ -35,6 +37,7 @@ Le numéro de facture est répété sur chaque ligne, le client n'est renseigné
 sur la première ligne de chaque facture.*/
 export const ECRITURE_COMPTABLE : FormatFichier = {
   nom: 'Écriture comptable',
+  nomCourt: 'Facture',
   colonnes: {
     codeClient:  'Partenaire/ID',
     nomClient:   "Nom d'affichage du partenaire de la facture",
@@ -55,6 +58,7 @@ elle n'est renseignée que sur leur première ligne. Pas de colonne de référen
 interne : elle est en tête du nom du produit, entre crochets.*/
 export const TOURNEE_DEVIS : FormatFichier = {
   nom: 'Tournée devis',
+  nomCourt: 'Devis',
   colonnes: {
     codeClient:  'Client/ID',
     nomClient:   'Client',
