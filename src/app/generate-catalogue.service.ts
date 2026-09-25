@@ -144,7 +144,26 @@ table.prod-table tbody td{padding:6px 10px;border-bottom:1px solid #EFEAE0;verti
 table.prod-table tbody tr:last-child td{border-bottom:none;}
 table.prod-table tbody tr:hover{background:var(--gp);}
 .footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);font-family:Arial,sans-serif;font-size:10.5px;color:var(--gray);text-align:center;}
-@media(max-width:800px){.columns{flex-direction:column;}}
+@media screen and (max-width:800px){.columns{flex-direction:column;}}
+@page{size:A4;margin:10mm;}
+@media print{
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{background:#fff;padding:0;}
+.header{padding-bottom:8px;margin-bottom:12px;border-bottom-width:2px;}
+.header img{width:48px;margin:0 auto 4px;}
+.header h1{font-size:20px;}
+.header .sub{font-size:9px;margin-top:4px;}
+.columns{display:block;column-count:2;column-gap:8mm;}
+.col{display:contents;}
+.cat-block{margin-bottom:10px;break-inside:auto;}
+.cat-title{font-size:10px;padding:4px 8px;break-after:avoid;}
+table.prod-table{font-size:9.5px;}
+table.prod-table thead th{font-size:8.5px;padding:3px 6px;white-space:nowrap;}
+table.prod-table thead{break-after:avoid;}
+table.prod-table tbody td{padding:2px 6px !important;font-size:9.5px !important;}
+table.prod-table tr{break-inside:avoid;}
+.footer{margin-top:12px;padding-top:6px;font-size:8.5px;}
+}
 </style></head><body>
 <div class="header">${logo}
   <h1>${titre}</h1>
