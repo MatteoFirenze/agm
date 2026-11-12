@@ -359,8 +359,8 @@ describe('ListeCommandeComponent', () => {
       expect(succes.detail).withContext('SCAM et OREC seulement').toContain('2 produit(s)');
     });
 
-    it('avertit des références absentes de l\'inventaire', async () => {
-      interceptTelechargement();
+    it('ajoute à 0 les références absentes de l\'inventaire et le signale', async () => {
+      const capture = interceptTelechargement();
       await importerFactures();
       await importerInventaire();
 
@@ -368,7 +368,12 @@ describe('ListeCommandeComponent', () => {
 
       const alerte = messages.find(m => m.severity === 'warn')!;
       expect(alerte).withContext('ARAXL est absent de l\'inventaire').toBeDefined();
+      expect(alerte.summary).toBe("Produits ajoutés à l'inventaire");
       expect(alerte.detail).toContain('ARAXL');
+
+      const araxl = (await inventaireGenere(capture)).parRef('ARAXL');
+      expect(araxl).withContext('la ligne ARAXL doit être créée').toBeDefined();
+      expect([araxl[DISPO], araxl[PREVU]]).toEqual([0, 0]);
     });
 
     it('n\'avertit pas quand toutes les références sont trouvées', async () => {
@@ -607,7 +612,7 @@ describe('ListeCommandeComponent', () => {
 
       await component.mettreAJourInventaire();
 
-      const alerte = messages.find(m => m.summary === "Références introuvables dans l'inventaire")!;
+      const alerte = messages.find(m => m.summary === "Produits ajoutés à l'inventaire")!;
       expect(alerte.detail).toContain('OLI5');
     });
 

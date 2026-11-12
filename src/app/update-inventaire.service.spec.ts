@@ -158,11 +158,11 @@ describe('UpdateInventaireService', () => {
       ]);
     });
 
-    it('garde tous les produits, vendus ou non', async () => {
+    it('garde tous les produits, vendus ou non, et ajoute les références inconnues', async () => {
       await service.genererInventaireMisAJour(inventaire, totaux, 'x.xlsx');
       const feuille = await feuilleProduite(capture);
 
-      expect(lignesDe(feuille).length - 1).toBe(INVENTAIRE_STANDARD.length);
+      expect(lignesDe(feuille).length - 1).withContext('inventaire + ARAXL').toBe(INVENTAIRE_STANDARD.length + 1);
     });
 
     it('retranche la quantité vendue des deux colonnes de quantité', async () => {
@@ -221,8 +221,52 @@ describe('UpdateInventaireService', () => {
     it('signale les références facturées absentes de l\'inventaire', async () => {
       const resultat = await service.genererInventaireMisAJour(inventaire, totaux, 'x.xlsx');
 
-      expect(resultat.referencesInconnues.map(r => r.ref)).toEqual(['ARAXL']);
-      expect(resultat.referencesInconnues[0].nom).toBe('ARANCINI TEST 1KG');
+      expect(resultat.referencesAjoutees.map(r => r.ref)).toEqual(['ARAXL']);
+      expect(resultat.referencesAjoutees[0].nom).toBe('ARANCINI TEST 1KG');
+    });
+
+    it('ajoute en fin de fichier une référence absente avec une quantité de 0', async () => {
+      await service.genererInventaireMisAJour(inventaire, totaux, 'x.xlsx');
+      const lignes = lignesParTitre(await feuilleProduite(capture));
+      const araxl = lignes[lignes.length - 1];
+
+      expect(araxl[REF]).toBe('ARAXL');
+      expect(araxl[NOM]).toBe('ARANCINI TEST 1KG');
+      expect(araxl['Catégorie de produits']).toBe(FAMILLE.VIVA);
+      expect([araxl[DISPO], araxl[PREVU]])
+        .withContext('la quantité facturée (3) n\'est pas déduite').toEqual([0, 0]);
+      expect([araxl['Prix de vente'], araxl['Étiquettes'], araxl['Taxes de vente']])
+        .withContext('inconnus : laissés vides').toEqual([null, null, null]);
+    });
+
+    it('ne compte pas une référence ajoutée comme ligne mise à jour', async () => {
+      const resultat = await service.genererInventaireMisAJour(inventaire, totaux, 'x.xlsx');
+      expect(resultat.lignesMisesAJour).withContext('ARAXL est ajouté, pas recalculé').toBe(2);
+    });
+
+    it('ajoute une seule ligne par référence inconnue, quelle que soit sa casse', async () => {
+      const totauxCasse = service.totauxParReference(await chargerFactures([{
+        numero: 'INV/1', codeClient: '1', nomClient: 'C',
+        lignes: [
+          { codeProduit: '1', nomProduit: 'NOUVEAU', famille: FAMILLE.POISSON, qte: 2, ref: 'neuf' },
+          { codeProduit: '2', nomProduit: 'NOUVEAU', famille: FAMILLE.POISSON, qte: 3, ref: ' NEUF ' },
+        ],
+      }]));
+
+      await service.genererInventaireMisAJour(inventaire, totauxCasse, 'x.xlsx');
+      const lignes = lignesParTitre(await feuilleProduite(capture));
+      const ajoutee = lignes[lignes.length - 1];
+
+      expect(lignes.length).toBe(INVENTAIRE_STANDARD.length + 1);
+      expect([ajoutee[DISPO], ajoutee[PREVU]]).toEqual([0, 0]);
+    });
+
+    it('n\'ajoute pas les alcools absents de l\'inventaire', async () => {
+      await service.genererInventaireMisAJour(inventaire, totaux, 'x.xlsx');
+      const feuille = await feuilleProduite(capture);
+
+      expect(ligneParRef(feuille, 'GRAP')).withContext('grappa').toBeUndefined();
+      expect(ligneParRef(feuille, 'CHI15')).withContext('vin').toBeUndefined();
     });
 
     it('ne modifie jamais le classeur importé', async () => {
@@ -345,6 +389,22 @@ describe('UpdateInventaireService', () => {
       const resultat = await service.genererInventaireMisAJour(inventaire, totaux, 'x.xlsx');
       expect(resultat.lignesMisesAJour).toBe(1);
       expect(capture.blob).not.toBeNull();
+    });
+
+    it('ajoute une référence inconnue même sans colonne Nom ni Catégorie', async () => {
+      const capture = interceptTelechargementDejaPose();
+      const inventaire = await construireInventaire(
+        [{ nom: 'P', ref: 'P1', famille: FAMILLE.POISSON, dispo: 10, prevu: 10 }],
+        { colonnesAbsentes: ['Nom', 'Catégorie de produits'] });
+      const totaux = service.totauxParReference(await chargerFactures([{
+        numero: 'INV/1', codeClient: '1', nomClient: 'C',
+        lignes: [{ codeProduit: '1', nomProduit: 'NOUVEAU', famille: FAMILLE.POISSON, qte: 4, ref: 'NEUF' }],
+      }]));
+
+      await service.genererInventaireMisAJour(inventaire, totaux, 'x.xlsx');
+      const neuf = ligneParRef(await feuilleProduite(capture), 'NEUF');
+
+      expect([neuf[DISPO], neuf[PREVU]]).toEqual([0, 0]);
     });
 
     /*Le spy est déjà posé par le beforeEach : on récupère juste la capture*/
