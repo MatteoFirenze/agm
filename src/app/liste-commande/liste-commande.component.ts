@@ -303,10 +303,10 @@ JSON: any;
       this.inventaireMisAJour = true;
       this.message.add({ severity: 'success', summary: 'Inventaire mis à jour', detail: resultat.lignesMisesAJour + ' produit(s) recalculé(s) sur ' + totaux.size + ' référence(s) facturée(s).' });
 
-      if(resultat.referencesInconnues.length > 0){
-        const apercu = resultat.referencesInconnues.slice(0, 10).map(r => r.ref + ' (' + r.nom + ')').join(', ');
-        const reste = resultat.referencesInconnues.length - 10;
-        this.message.add({ severity: 'warn', summary: "Références introuvables dans l'inventaire", detail: resultat.referencesInconnues.length + " référence(s) facturée(s) sont absentes du fichier d'inventaire et n'ont pas été déduites : " + apercu + (reste > 0 ? ' et ' + reste + ' autre(s).' : '.') });
+      if(resultat.referencesAjoutees.length > 0){
+        const apercu = resultat.referencesAjoutees.slice(0, 10).map(r => r.ref + ' (' + r.nom + ')').join(', ');
+        const reste = resultat.referencesAjoutees.length - 10;
+        this.message.add({ severity: 'warn', summary: "Produits ajoutés à l'inventaire", detail: resultat.referencesAjoutees.length + " référence(s) facturée(s) étaient absentes du fichier d'inventaire et y ont été ajoutées avec une quantité de 0 : " + apercu + (reste > 0 ? ' et ' + reste + ' autre(s).' : '.') });
       }
     } catch (erreur : any) {
       this.message.add({ severity: 'error', summary: 'Erreur', detail: erreur?.message || "Impossible de générer le fichier d'inventaire." });

@@ -8,13 +8,15 @@ import { texteCellule, valeurCellule } from './cellule';
 export interface TotalReference {
   ref : string,   //référence telle qu'écrite dans l'écriture comptable
   nom : string,
+  famille : string, //catégorie de produits facturée, reprise si on doit créer la ligne
   qte : number,   //positif = sorti du stock, négatif = rentré (avoir/retour)
 }
 
 /*Ce qu'il s'est passé pendant la mise à jour, pour pouvoir en informer l'utilisateur*/
 export interface ResultatMaj {
   lignesMisesAJour : number,
-  referencesInconnues : TotalReference[],
+  //références facturées absentes de l'inventaire, ajoutées en fin de fichier avec une quantité de 0
+  referencesAjoutees : TotalReference[],
 }
 
 @Injectable({
@@ -27,6 +29,9 @@ export class UpdateInventaireService {
   //colonnes de quantité à recalculer
   private static readonly COLONNES_QTE = ['Quantité disponible', 'Quantité prévue'];
   private static readonly COLONNE_REF = 'Référence interne';
+  //colonnes renseignées sur une ligne ajoutée pour une référence absente de l'inventaire
+  private static readonly COLONNE_NOM = 'Nom';
+  private static readonly COLONNE_FAMILLE = 'Catégorie de produits';
   //colonnes placées en tête du fichier généré, dans cet ordre : ce sont celles
   //que l'on consulte en premier. Le reste suit dans l'ordre du fichier importé.
   private static readonly COLONNES_EN_TETE = ['Nom', 'Prix de vente', 'Quantité disponible'];
@@ -46,7 +51,7 @@ export class UpdateInventaireService {
         if (cle === null) return; //ligne sans référence interne
 
         if (!totaux.has(cle)) {
-          totaux.set(cle, { ref: texteCellule(ligne.ref), nom: texteCellule(ligne.nom), qte: 0 });
+          totaux.set(cle, { ref: texteCellule(ligne.ref), nom: texteCellule(ligne.nom), famille: texteCellule(ligne.famille), qte: 0 });
         }
         let total = totaux.get(cle)!;
         total.qte = this.arrondir(total.qte + (Number(valeurCellule(ligne.qte)) || 0));
@@ -58,7 +63,9 @@ export class UpdateInventaireService {
 
   /*Recopie l'inventaire en retirant les 2 colonnes inutiles et en retranchant
   les quantités facturées. Une quantité facturée négative (avoir, retour)
-  augmente donc le stock. Le fichier d'origine n'est pas modifié.*/
+  augmente donc le stock. Une référence facturée absente de l'inventaire y est
+  ajoutée en fin de fichier avec une quantité de 0 (rien n'est déduit).
+  Le fichier d'origine n'est pas modifié.*/
   async genererInventaireMisAJour(inventaire : ExcelJS.Workbook, totaux : Map<string, TotalReference>, nomFichier : string) : Promise<ResultatMaj> {
     let source = inventaire.getWorksheet(1);
     let enTete = source.getRow(1);
@@ -128,15 +135,18 @@ export class UpdateInventaireService {
       feuille.addRow(valeurs);
     });
 
-    //ce qui a été facturé mais qui n'existe pas dans l'inventaire
-    let referencesInconnues : TotalReference[] = [];
+    //ce qui a été facturé mais qui n'existe pas dans l'inventaire : on crée la
+    //ligne avec une quantité de 0, sans y déduire la quantité facturée
+    let referencesAjoutees : TotalReference[] = [];
     totaux.forEach((total, cle) => {
-      if (!referencesVues.has(cle)) referencesInconnues.push(total);
+      if (referencesVues.has(cle)) return;
+      referencesAjoutees.push(total);
+      feuille.addRow(colonnesGardees.map((col, i) => this.valeurNouvelleLigne(titres[i], col, colsQte, total)));
     });
 
     await this.telecharger(sortie, nomFichier);
 
-    return { lignesMisesAJour, referencesInconnues };
+    return { lignesMisesAJour, referencesAjoutees };
   }
 
   /*Nom du fichier généré, dérivé de celui que l'utilisateur a importé*/
@@ -159,6 +169,17 @@ export class UpdateInventaireService {
     lien.click();
 
     URL.revokeObjectURL(url);
+  }
+
+  /*Valeur d'une cellule de la ligne créée pour une référence absente de
+  l'inventaire : seules la référence, le nom, la catégorie et les quantités
+  (à 0) sont connues, le reste est laissé vide*/
+  private valeurNouvelleLigne(titre : string, col : number, colsQte : number[], total : TotalReference) : any {
+    if (colsQte.indexOf(col) !== -1) return 0;
+    if (titre === UpdateInventaireService.COLONNE_REF) return total.ref;
+    if (titre === UpdateInventaireService.COLONNE_NOM) return total.nom || null;
+    if (titre === UpdateInventaireService.COLONNE_FAMILLE) return total.famille || null;
+    return null;
   }
 
   /*Rang de tri d'une colonne : sa place dans COLONNES_EN_TETE, sinon après
