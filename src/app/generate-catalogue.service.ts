@@ -1,12 +1,15 @@
 import { Injectable } from '@angular/core';
 import * as ExcelJS from 'exceljs' ;
 import { texteCellule, valeurCellule } from './cellule';
+import { codeFamille, NOMS_FAMILLES } from './familles';
 
 /*Catalogue produits généré à partir du fichier d'inventaire.
 
 Reprend helpers/Catalogue/generate_catalogue.py : même repérage des colonnes,
-mêmes regroupements, même répartition en 2 colonnes et même mise en page que
-catalogue_produits.html.*/
+même répartition en 2 colonnes et même mise en page que catalogue_produits.html.
+Contrairement au script, les articles sont regroupés par famille et non par
+étiquette : la famille est toujours renseignée, y compris sur les lignes
+ajoutées à la mise à jour de l'inventaire.*/
 
 export interface ArticleCatalogue {
   nom : string,
@@ -21,7 +24,7 @@ export interface GroupeCatalogue {
 
 /*Numéro de colonne de chaque information utile, -1 si absente*/
 interface ColonnesCatalogue {
-  groupe : number,
+  famille : number,
   nom : number,
   ref : number,
   prix : number,
@@ -36,7 +39,7 @@ export class GenerateCatalogueService {
   static readonly NOM_FICHIER = 'catalogue_produits.html';
   static readonly TITRE = 'Vins & Gastronomie Firenze';
   static readonly LOGO = 'assets/catalogue-logo.png';
-  //groupe des produits sans étiquette ni catégorie
+  //groupe des produits sans famille
   static readonly GROUPE_PAR_DEFAUT = 'Autres';
 
   //palette déclinée du logo (bronze / or chaud)
@@ -57,8 +60,10 @@ export class GenerateCatalogueService {
     return nbArticles;
   }
 
-  /*Articles regroupés par étiquette (à défaut par catégorie), groupes dans leur
-  ordre d'apparition et articles triés par nom. Tout ce qui est dans l'inventaire
+  /*Articles regroupés par famille (« Catégorie de produits »), sous le nom de
+  NOMS_FAMILLES et dans son ordre ; une famille inconnue de la table garde sa
+  valeur Odoo et vient après, les articles sans famille finissent dans « Autres ».
+  Articles triés par nom. Tout ce qui est dans l'inventaire
   figure au catalogue : quantité nulle, négative ou vide (affichée 0), prix non
   renseigné (cellule laissée vide, cas des lignes ajoutées à la mise à jour).
   Seules les lignes sans nom ni référence, donc vides, sont ignorées.*/
@@ -74,33 +79,46 @@ export class GenerateCatalogueService {
       throw new Error("Colonne(s) introuvable(s) dans le fichier d'inventaire : « " + manquantes.join(' », « ') + " ».");
     }
 
-    let groupes : Map<string, ArticleCatalogue[]> = new Map();
+    let texte = (row : ExcelJS.Row, col : number) : string => col === -1 ? '' : texteCellule(row.getCell(col).value).trim();
+
+    //rang de chaque groupe : familles connues dans l'ordre de la table, puis les
+    //inconnues dans leur ordre d'apparition, « Autres » en dernier
+    let groupes : Map<string, { rang : number, articles : ArticleCatalogue[] }> = new Map();
 
     feuille.eachRow((row, numero) => {
       if (numero === 1) return; //en-tête
 
-      let nom = texteCellule(row.getCell(colonnes.nom).value).trim();
       //sans nom, on affiche au moins la référence interne
-      if (nom === '' && colonnes.ref !== -1) nom = texteCellule(row.getCell(colonnes.ref).value).trim();
+      let nom = texte(row, colonnes.nom) || texte(row, colonnes.ref);
       if (nom === '') return; //ligne vide
 
-      let titre = colonnes.groupe === -1 ? '' : texteCellule(row.getCell(colonnes.groupe).value).trim();
-      if (titre === '') titre = GenerateCatalogueService.GROUPE_PAR_DEFAUT;
-      if (!groupes.has(titre)) groupes.set(titre, []);
+      let { titre, rang } = this.groupeDe(texte(row, colonnes.famille));
+      if (!groupes.has(titre)) groupes.set(titre, { rang, articles: [] });
 
-      groupes.get(titre)!.push({
+      groupes.get(titre)!.articles.push({
         nom,
         prix: this.nombre(valeurCellule(row.getCell(colonnes.prix).value)),
         qte: this.nombre(valeurCellule(row.getCell(colonnes.qte).value)) ?? 0,
       });
     });
 
-    let resultat : GroupeCatalogue[] = [];
-    groupes.forEach((articles, titre) => {
-      articles.sort((a, b) => a.nom < b.nom ? -1 : a.nom > b.nom ? 1 : 0);
-      resultat.push({ titre, articles });
-    });
-    return resultat;
+    //Array.sort est stable : à rang égal, l'ordre d'apparition est conservé
+    return Array.from(groupes.entries())
+      .sort(([, a], [, b]) => a.rang - b.rang)
+      .map(([titre, { articles }]) => ({
+        titre,
+        articles: articles.sort((a, b) => a.nom < b.nom ? -1 : a.nom > b.nom ? 1 : 0),
+      }));
+  }
+
+  /*Titre et rang du groupe d'une famille telle qu'écrite dans l'inventaire*/
+  private groupeDe(famille : string) : { titre : string, rang : number } {
+    if (famille === '') return { titre: GenerateCatalogueService.GROUPE_PAR_DEFAUT, rang: NOMS_FAMILLES.length + 1 };
+
+    let code = codeFamille(famille);
+    let rang = NOMS_FAMILLES.findIndex(f => f.code === code);
+    if (rang === -1) return { titre: famille, rang: NOMS_FAMILLES.length };
+    return { titre: NOMS_FAMILLES[rang].nom, rang };
   }
 
   /*Répartit les groupes en 2 colonnes de hauteur équivalente, en gardant leur
@@ -201,8 +219,7 @@ table.prod-table tr{break-inside:avoid;}
       + `<tbody>${lignes}</tbody></table></div>`;
   }
 
-  /*Colonnes repérées par mot-clé dans l'intitulé, comme le script Python : les
-  étiquettes priment sur la catégorie pour le regroupement*/
+  /*Colonnes repérées par mot-clé dans l'intitulé, comme le script Python*/
   private repererColonnes(enTete : ExcelJS.Row) : ColonnesCatalogue {
     let intitules : string[] = [];
     enTete.eachCell((cell, col) => { intitules[col] = texteCellule(cell.value).trim().toLowerCase(); });
@@ -215,9 +232,8 @@ table.prod-table tr{break-inside:avoid;}
       return -1;
     };
 
-    let etiquette = trouver(['étiquette', 'etiquette', 'label', 'tag']);
     return {
-      groupe: etiquette !== -1 ? etiquette : trouver(['catégorie', 'categorie', 'category']),
+      famille: trouver(['catégorie', 'categorie', 'category']),
       nom: trouver(['nom', 'name']),
       ref: trouver(['référence', 'reference']),
       prix: trouver(['prix', 'price']),

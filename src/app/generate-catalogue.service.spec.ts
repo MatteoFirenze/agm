@@ -46,29 +46,49 @@ describe('GenerateCatalogueService', () => {
   // ─────────────────────────────────────────────────────────────────────────
   describe('lireInventaire', () => {
 
-    it('regroupe les articles par étiquette, dans l\'ordre du fichier', async () => {
+    it('regroupe les articles par famille, nommées et dans l\'ordre des codes', async () => {
       const groupes = await lire(INVENTAIRE_STANDARD);
 
-      expect(groupes.map(g => g.titre)).toEqual(['Poissons', 'Pâtes Fraiches', 'Divers', 'Verdure', 'Vins']);
+      expect(groupes.map(g => g.titre)).toEqual(['Vins', 'Pâtes surgelées', 'Poissons', 'Pâtes fraîches', 'Autres']);
     });
 
     it('reprend le prix de vente tel quel, sans conversion de taxe', async () => {
       const groupes = await lire(INVENTAIRE_STANDARD);
+      const groupe = (titre : string) => groupes.find(g => g.titre === titre)!;
 
-      expect(groupes[0].articles).toEqual([{ nom: 'SCAMPI TEST 1KG', prix: 30, qte: 100 }]);
-      expect(groupes[4].articles[0].prix).withContext('vin à 21 %').toBe(49.5);
+      expect(groupe('Poissons').articles).toEqual([{ nom: 'SCAMPI TEST 1KG', prix: 30, qte: 100 }]);
+      expect(groupe('Vins').articles[0].prix).withContext('vin à 21 %').toBe(49.5);
     });
 
-    it('regroupe par catégorie quand il n\'y a pas de colonne Étiquettes', async () => {
-      const groupes = await lire(INVENTAIRE_STANDARD, { colonnesAbsentes: ['Étiquettes'] });
+    it('ne tient pas compte des étiquettes', async () => {
+      const groupes = await lire([
+        { ...produit('SCAMPI', 'Poissons', 1), famille: FAMILLE.POISSON },
+        { ...produit('MOULES', 'Crustacés', 1), famille: FAMILLE.POISSON },
+        //ajouté à la mise à jour : famille connue, étiquette vide
+        { ...produit('ESPADON', null, 0), famille: FAMILLE.POISSON },
+      ]);
 
-      expect(groupes.map(g => g.titre)).toEqual([FAMILLE.POISSON, FAMILLE.PATES_FRAICHES, FAMILLE.PATES_SURG, 'Autres', FAMILLE.VIN]);
+      expect(groupes).toEqual([{ titre: 'Poissons', articles: [
+        { nom: 'ESPADON', prix: 10, qte: 0 }, { nom: 'MOULES', prix: 10, qte: 1 }, { nom: 'SCAMPI', prix: 10, qte: 1 },
+      ] }]);
     });
 
-    it('range les articles sans étiquette dans « Autres »', async () => {
-      const groupes = await lire([produit('A', null, 1), produit('B', '', 1)]);
+    it('range les articles sans famille dans « Autres », en dernier', async () => {
+      const groupes = await lire([
+        { ...produit('A', null, 1), famille: null }, { ...produit('B', null, 1), famille: '' },
+        { ...produit('C', null, 1), famille: FAMILLE.GLACE },
+      ]);
 
-      expect(groupes).toEqual([{ titre: 'Autres', articles: [{ nom: 'A', prix: 10, qte: 1 }, { nom: 'B', prix: 10, qte: 1 }] }]);
+      expect(groupes.map(g => [g.titre, g.articles.map(a => a.nom)])).toEqual([['Glaces', ['C']], ['Autres', ['A', 'B']]]);
+    });
+
+    it('garde la valeur Odoo d\'une famille inconnue, après les familles connues', async () => {
+      const groupes = await lire([
+        { ...produit('X', null, 1), famille: 'FA0099 - FA0099' },
+        { ...produit('Y', null, 1), famille: FAMILLE.DESSERT },
+      ]);
+
+      expect(groupes.map(g => g.titre)).toEqual(['Desserts', 'FA0099 - FA0099']);
     });
 
     it('trie les articles par nom dans chaque groupe', async () => {
@@ -90,10 +110,12 @@ describe('GenerateCatalogueService', () => {
 
     it('garde un groupe entièrement épuisé, à sa place', async () => {
       const groupes = await lire([
-        produit('A', 'Dessert', 1), produit('B', 'Glaces', 0), produit('C', 'Poissons', -1),
+        { ...produit('A', null, 1), famille: FAMILLE.DESSERT },
+        { ...produit('B', null, 0), famille: FAMILLE.GLACE },
+        { ...produit('C', null, -1), famille: FAMILLE.POISSON },
       ]);
 
-      expect(groupes.map(g => g.titre)).toEqual(['Dessert', 'Glaces', 'Poissons']);
+      expect(groupes.map(g => g.titre)).toEqual(['Poissons', 'Desserts', 'Glaces']);
     });
 
     it('garde un article sans prix, prix laissé vide', async () => {
@@ -173,13 +195,13 @@ describe('GenerateCatalogueService', () => {
 
       expect(page.querySelectorAll('.columns > .col').length).toBe(2);
       expect(Array.from(page.querySelectorAll('.cat-title')).map(t => t.textContent))
-        .toEqual(['Poissons', 'Pâtes Fraiches', 'Divers', 'Verdure', 'Vins']);
+        .toEqual(['Vins', 'Pâtes surgelées', 'Poissons', 'Pâtes fraîches', 'Autres']);
       //le « Prix de vente » Odoo est hors TVA : le catalogue le dit et le reprend tel quel
       expect(page.querySelector('thead')!.textContent).toBe('ArticlePrix HTVAQté');
       expect(html).not.toContain('TTC');
 
-      const scampi = page.querySelector('tbody tr')!.querySelectorAll('td');
-      expect(Array.from(scampi).map(td => td.textContent)).toEqual(['SCAMPI TEST 1KG', '30,00 €', '100']);
+      const scampi = Array.from(page.querySelectorAll('tbody tr')).find(tr => tr.textContent!.includes('SCAMPI'))!;
+      expect(Array.from(scampi.querySelectorAll('td')).map(td => td.textContent)).toEqual(['SCAMPI TEST 1KG', '30,00 €', '100']);
     });
 
     it('échappe les caractères HTML des noms', () => {

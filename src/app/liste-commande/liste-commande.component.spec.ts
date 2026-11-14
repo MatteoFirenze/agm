@@ -500,6 +500,8 @@ describe('ListeCommandeComponent', () => {
       const araxl = Array.from(page.querySelectorAll('tbody tr')).find(tr => tr.textContent!.includes('ARANCINI TEST 1KG'));
       expect(araxl).withContext('ARAXL, absent de l\'inventaire importé, a été ajouté sans prix avec 0 en stock').toBeDefined();
       expect(Array.from(araxl!.querySelectorAll('td')).map(td => td.textContent)).toEqual(['ARANCINI TEST 1KG', '', '0']);
+      expect(araxl!.closest('.cat-block')!.querySelector('.cat-title')!.textContent)
+        .withContext('rangé dans sa famille (FA0008), pas dans « Autres »').toBe('Viva');
     });
 
     it('avertit sans rien télécharger quand l\'inventaire est vide', async () => {
