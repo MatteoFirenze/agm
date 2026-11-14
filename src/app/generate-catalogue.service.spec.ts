@@ -77,28 +77,41 @@ describe('GenerateCatalogueService', () => {
       expect(groupes[0].articles.map(a => a.nom)).toEqual(['BABA', 'CANNOLO', 'DELIZIA']);
     });
 
-    it('écarte les articles épuisés, négatifs ou sans quantité', async () => {
+    it('garde les articles épuisés, négatifs ou sans quantité', async () => {
       const groupes = await lire([
         produit('EN STOCK', 'Poissons', 4), produit('EPUISE', 'Poissons', 0),
         produit('NEGATIF', 'Poissons', -2), produit('SANS QTE', 'Poissons', null),
       ]);
 
-      expect(groupes[0].articles.map(a => a.nom)).toEqual(['EN STOCK']);
+      expect(groupes[0].articles.map(a => [a.nom, a.qte])).toEqual([
+        ['EN STOCK', 4], ['EPUISE', 0], ['NEGATIF', -2], ['SANS QTE', 0],
+      ]);
     });
 
-    it('omet un groupe entièrement épuisé sans changer l\'ordre des autres', async () => {
+    it('garde un groupe entièrement épuisé, à sa place', async () => {
       const groupes = await lire([
-        produit('A', 'Dessert', 1), produit('B', 'Verdure', 0), produit('C', 'Poissons', 1),
-        produit('D', 'Verdure', 3), produit('E', 'Glaces', 0),
+        produit('A', 'Dessert', 1), produit('B', 'Glaces', 0), produit('C', 'Poissons', -1),
       ]);
 
-      expect(groupes.map(g => g.titre)).withContext('Verdure garde sa place : son 1er article est épuisé').toEqual(['Dessert', 'Verdure', 'Poissons']);
+      expect(groupes.map(g => g.titre)).toEqual(['Dessert', 'Glaces', 'Poissons']);
     });
 
-    it('ignore les lignes sans nom ou sans prix', async () => {
-      const groupes = await lire([produit('OK', 'Poissons', 1), produit(null as any, 'Poissons', 1), produit('SANS PRIX', 'Poissons', 1, null)]);
+    it('garde un article sans prix, prix laissé vide', async () => {
+      const groupes = await lire([produit('SANS PRIX', 'Poissons', 1, null), produit('PRIX TEXTE', 'Poissons', 1, 'n/a')]);
 
-      expect(groupes[0].articles.map(a => a.nom)).toEqual(['OK']);
+      expect(groupes[0].articles).toEqual([
+        { nom: 'PRIX TEXTE', prix: null, qte: 1 },
+        { nom: 'SANS PRIX', prix: null, qte: 1 },
+      ]);
+    });
+
+    it('affiche la référence d\'un article sans nom, ignore les lignes vides', async () => {
+      const groupes = await lire([
+        { ...produit(null as any, 'Poissons', 1), ref: 'ARAXL' },
+        produit(null as any, 'Poissons', 1),
+      ]);
+
+      expect(groupes[0].articles.map(a => a.nom)).toEqual(['ARAXL']);
     });
 
     it('conserve les quantités décimales', async () => {
@@ -138,6 +151,15 @@ describe('GenerateCatalogueService', () => {
     it('affiche les prix avec 2 décimales et une virgule', () => {
       expect(service.formaterPrix(30)).toBe('30,00 €');
       expect(service.formaterPrix(8.5)).toBe('8,50 €');
+    });
+
+    it('laisse vide un prix non renseigné', () => {
+      expect(service.formaterPrix(null)).toBe('');
+    });
+
+    it('affiche les quantités nulles et négatives', () => {
+      expect(service.formaterQte(0)).toBe('0');
+      expect(service.formaterQte(-2.5)).toBe('-2,50');
     });
 
     it('affiche les quantités entières sans décimale', () => {
@@ -203,11 +225,21 @@ describe('GenerateCatalogueService', () => {
       expect(html).not.toContain('<img');
     });
 
-    it('ne télécharge rien quand aucun article n\'est en stock', async () => {
+    it('liste aussi les articles épuisés', async () => {
       const capture = interceptTelechargement();
       spyOn(window, 'fetch').and.rejectWith(new Error('hors ligne'));
 
       const nbArticles = await service.genererCatalogue(await construireInventaire([produit('EPUISE', 'Poissons', 0)]));
+
+      expect(nbArticles).toBe(1);
+      expect(await capture.blob!.text()).toContain('EPUISE');
+    });
+
+    it('ne télécharge rien quand l\'inventaire est vide', async () => {
+      const capture = interceptTelechargement();
+      spyOn(window, 'fetch').and.rejectWith(new Error('hors ligne'));
+
+      const nbArticles = await service.genererCatalogue(await construireInventaire([]));
 
       expect(nbArticles).toBe(0);
       expect(capture.blob).toBeNull();

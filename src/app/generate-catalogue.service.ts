@@ -10,8 +10,8 @@ catalogue_produits.html.*/
 
 export interface ArticleCatalogue {
   nom : string,
-  prix : number,  //« Prix de vente » Odoo, déjà HTVA : affiché sans conversion
-  qte : number,
+  prix : number | null,  //« Prix de vente » Odoo, déjà HTVA : affiché sans conversion ; null si non renseigné
+  qte : number,  //telle quelle, même nulle ou négative
 }
 
 export interface GroupeCatalogue {
@@ -23,6 +23,7 @@ export interface GroupeCatalogue {
 interface ColonnesCatalogue {
   groupe : number,
   nom : number,
+  ref : number,
   prix : number,
   qte : number,
 }
@@ -45,7 +46,7 @@ export class GenerateCatalogueService {
   private static readonly ENCRE = '#3A332A';
 
   /*Génère le catalogue et le télécharge. Renvoie le nombre d'articles listés ;
-  s'il n'y en a aucun, rien n'est téléchargé.*/
+  s'il n'y en a aucun (inventaire vide), rien n'est téléchargé.*/
   async genererCatalogue(inventaire : ExcelJS.Workbook) : Promise<number> {
     let groupes = this.lireInventaire(inventaire.getWorksheet(1));
     let nbArticles = groupes.reduce((total, groupe) => total + groupe.articles.length, 0);
@@ -57,8 +58,10 @@ export class GenerateCatalogueService {
   }
 
   /*Articles regroupés par étiquette (à défaut par catégorie), groupes dans leur
-  ordre d'apparition et articles triés par nom. Seuls les articles en stock
-  figurent au catalogue.*/
+  ordre d'apparition et articles triés par nom. Tout ce qui est dans l'inventaire
+  figure au catalogue : quantité nulle, négative ou vide (affichée 0), prix non
+  renseigné (cellule laissée vide, cas des lignes ajoutées à la mise à jour).
+  Seules les lignes sans nom ni référence, donc vides, sont ignorées.*/
   lireInventaire(feuille : ExcelJS.Worksheet) : GroupeCatalogue[] {
     let colonnes = this.repererColonnes(feuille.getRow(1));
 
@@ -77,24 +80,23 @@ export class GenerateCatalogueService {
       if (numero === 1) return; //en-tête
 
       let nom = texteCellule(row.getCell(colonnes.nom).value).trim();
-      let prix = valeurCellule(row.getCell(colonnes.prix).value);
-      if (nom === '' || prix === null || isNaN(Number(prix))) return;
+      //sans nom, on affiche au moins la référence interne
+      if (nom === '' && colonnes.ref !== -1) nom = texteCellule(row.getCell(colonnes.ref).value).trim();
+      if (nom === '') return; //ligne vide
 
       let titre = colonnes.groupe === -1 ? '' : texteCellule(row.getCell(colonnes.groupe).value).trim();
       if (titre === '') titre = GenerateCatalogueService.GROUPE_PAR_DEFAUT;
-      //groupe enregistré avant le filtre de stock : l'ordre des groupes suit le
-      //fichier et ne bouge pas quand un article vient à manquer
       if (!groupes.has(titre)) groupes.set(titre, []);
 
-      let qte = Number(valeurCellule(row.getCell(colonnes.qte).value)) || 0;
-      if (qte <= 0) return; //épuisé : rien à proposer
-
-      groupes.get(titre)!.push({ nom, prix: Number(prix), qte });
+      groupes.get(titre)!.push({
+        nom,
+        prix: this.nombre(valeurCellule(row.getCell(colonnes.prix).value)),
+        qte: this.nombre(valeurCellule(row.getCell(colonnes.qte).value)) ?? 0,
+      });
     });
 
     let resultat : GroupeCatalogue[] = [];
     groupes.forEach((articles, titre) => {
-      if (articles.length === 0) return;
       articles.sort((a, b) => a.nom < b.nom ? -1 : a.nom > b.nom ? 1 : 0);
       resultat.push({ titre, articles });
     });
@@ -174,8 +176,9 @@ table.prod-table tr{break-inside:avoid;}
 </body></html>`;
   }
 
-  /*« 12.5 » -> « 12,50 € »*/
-  formaterPrix(prix : number) : string {
+  /*« 12.5 » -> « 12,50 € » ; prix non renseigné -> cellule vide*/
+  formaterPrix(prix : number | null) : string {
+    if (prix === null) return '';
     return prix.toFixed(2).replace('.', ',') + ' €';
   }
 
@@ -216,6 +219,7 @@ table.prod-table tr{break-inside:avoid;}
     return {
       groupe: etiquette !== -1 ? etiquette : trouver(['catégorie', 'categorie', 'category']),
       nom: trouver(['nom', 'name']),
+      ref: trouver(['référence', 'reference']),
       prix: trouver(['prix', 'price']),
       qte: trouver(['quantité', 'quantite', 'qty', 'stock']),
     };
@@ -234,6 +238,13 @@ table.prod-table tr{break-inside:avoid;}
     } catch {
       return null;
     }
+  }
+
+  /*Valeur numérique d'une cellule, null si vide ou non numérique*/
+  private nombre(valeur : any) : number | null {
+    if (valeur === null || valeur === undefined || String(valeur).trim() === '') return null;
+    let nombre = Number(valeur);
+    return isNaN(nombre) ? null : nombre;
   }
 
   private telecharger(html : string, nomFichier : string) {

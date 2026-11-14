@@ -475,9 +475,36 @@ describe('ListeCommandeComponent', () => {
       expect(scampi.lastElementChild!.textContent).withContext('100 en stock, 35 facturés ignorés').toBe('100');
     });
 
-    it('avertit sans rien télécharger quand aucun article n\'est en stock', async () => {
+    it('liste tout l\'inventaire, même les quantités nulles ou négatives', async () => {
       const capture = interceptTelechargement();
-      await importerInventaire(INVENTAIRE_STANDARD.map(p => ({ ...p, dispo: 0 })));
+      await importerInventaire(INVENTAIRE_STANDARD.map((p, i) => ({ ...p, dispo: i % 2 === 0 ? 0 : -3 })));
+
+      await component.genererCatalogue();
+
+      const html = await capture.blob!.text();
+      INVENTAIRE_STANDARD.forEach(p => expect(html).toContain(p.nom));
+      expect(messages.find(m => m.severity === 'success')!.detail).toContain('5 article(s)');
+    });
+
+    it('liste les articles ajoutés à la mise à jour, une fois l\'inventaire généré réimporté', async () => {
+      const capture = interceptTelechargement();
+      await importerFactures();
+      await importerInventaire();
+      await component.mettreAJourInventaire();
+      const inventaireGenere = new File([await capture.blob!.arrayBuffer()], capture.nom);
+
+      await component.importerInventaire({ currentTarget: { files: [inventaireGenere] } });
+      await component.genererCatalogue();
+
+      const page = new DOMParser().parseFromString(await capture.blob!.text(), 'text/html');
+      const araxl = Array.from(page.querySelectorAll('tbody tr')).find(tr => tr.textContent!.includes('ARANCINI TEST 1KG'));
+      expect(araxl).withContext('ARAXL, absent de l\'inventaire importé, a été ajouté sans prix avec 0 en stock').toBeDefined();
+      expect(Array.from(araxl!.querySelectorAll('td')).map(td => td.textContent)).toEqual(['ARANCINI TEST 1KG', '', '0']);
+    });
+
+    it('avertit sans rien télécharger quand l\'inventaire est vide', async () => {
+      const capture = interceptTelechargement();
+      await importerInventaire([]);
 
       await component.genererCatalogue();
 
