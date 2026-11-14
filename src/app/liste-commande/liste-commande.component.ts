@@ -341,11 +341,11 @@ JSON: any;
     try {
       const nbArticles = await this.generateCatalogue.genererCatalogue(this.inventaire);
       if(nbArticles === 0){
-        this.message.add({ severity: 'warn', summary: 'Catalogue vide', detail: "Aucun article en stock dans le fichier d'inventaire." });
+        this.message.add({ severity: 'warn', summary: 'Catalogue vide', detail: "Aucun article dans le fichier d'inventaire." });
         return;
       }
       this.catalogueGenere = true;
-      this.message.add({ severity: 'success', summary: 'Catalogue généré', detail: nbArticles + ' article(s) en stock.' });
+      this.message.add({ severity: 'success', summary: 'Catalogue généré', detail: nbArticles + ' article(s).' });
     } catch (erreur : any) {
       this.message.add({ severity: 'error', summary: 'Erreur', detail: erreur?.message || 'Impossible de générer le catalogue.' });
     }
